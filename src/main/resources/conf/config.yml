@@ -1,4 +1,5 @@
 # Number of Threads for the Extension
+# TODO numberOfThreads should be configured correctly. Its also a good practice to give a small amount of threads as buffer
 numberOfThreads: 3
 
 # This will create it in specific Tier aka Component. Replace <COMPONENT_ID>.

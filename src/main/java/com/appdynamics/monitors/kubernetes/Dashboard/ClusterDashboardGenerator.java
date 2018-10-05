@@ -56,6 +56,7 @@ public class ClusterDashboardGenerator implements AMonitorTaskRunnable {
             logger.info("Reading the dashboard template from {}", path);
             JsonNode template = readTemplate(path);
             JsonNode widgets = template.get("widgetTemplates");
+            // TODO possible NPE if readTemplate returns null
             //update name
             ((ObjectNode)template).put("name", dashName);
             //create Dashboard

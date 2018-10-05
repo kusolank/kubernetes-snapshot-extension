@@ -58,6 +58,7 @@ public class KubernetesSnapshotExtension extends ABaseMonitor {
             logger.info("Taking cluster snapshot");
             Map<String, String> config = (Map<String, String>)configuration.getConfigYml();
             //populate Tier ID and cache of searched
+            // TODO correct me if I am wrong but shouldn't the extension run stop if initClusterMonitoring(config) fails?
             initClusterMonitoring(config);
             ArrayList<SnapshotRunnerBase> tasks = new ArrayList<SnapshotRunnerBase>();
             List<Map<String,String>> entities = (List<Map<String,String>>)configuration.getConfigYml().get(CONFIG_NODE_ENTITIES);
@@ -177,8 +178,12 @@ public class KubernetesSnapshotExtension extends ABaseMonitor {
         return entities.size();
     }
 
+    /* TODO for custom metrics the extension should send the data to the tier associated with MA, if the tierName mentioned in the config.yml is different than the one MA is associated with then custom metrics will not be uploaded
+     */
     public void initClusterMonitoring(Map<String, String> config){
         try {
+            // TODO ensure that clusterName is not null
+            // TODO also applicable for all get* methods in Utilities, where ever it is used it would be good to check for nulls
             String clusterName = Utilities.getClusterApplicationName(config);
             logger.info("Initializing Monitoring. Cluster {}", clusterName);
             //does the app exist?

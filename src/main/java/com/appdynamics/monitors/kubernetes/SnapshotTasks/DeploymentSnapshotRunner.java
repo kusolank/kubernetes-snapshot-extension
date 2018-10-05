@@ -70,6 +70,7 @@ public class DeploymentSnapshotRunner extends SnapshotRunnerBase {
                 UploadMetricsTask metricsTask = new UploadMetricsTask(getConfiguration(), getServiceProvider().getMetricWriteHelper(), metricList, countDownLatch);
                 getConfiguration().getExecutorService().execute("UploadDeployMetricsTask", metricsTask);
             } catch (IOException e) {
+                // TODO countdown the latch in case of exception, just like you have in PodSnapshotRunner
                 logger.error("Failed to push Deployments data", e);
                 e.printStackTrace();
             } catch (Exception e) {

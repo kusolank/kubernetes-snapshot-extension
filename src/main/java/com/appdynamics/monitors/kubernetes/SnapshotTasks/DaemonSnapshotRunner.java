@@ -68,7 +68,9 @@ public class DaemonSnapshotRunner extends SnapshotRunnerBase{
                 getConfiguration().getExecutorService().execute("UploadDaemonMetricsTask", podMetricsTask);
 
             } catch (IOException e) {
+                // TODO countdown the latch in case of exception, just like you have in PodSnapshotRunner
                 logger.error("Failed to push Daemonsets data", e);
+                // TODO e.printStackTrace can be removed since we are sending the error in logs
                 e.printStackTrace();
             } catch (Exception e) {
                 logger.error("Failed to push Daemonsets data", e);

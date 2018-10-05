@@ -77,7 +77,7 @@ public class RestClient {
         try {
             conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("GET");
-
+            // TODO chances of NullPointerException here, good to have a check over here and avoid NPE
             byte[] message = (user).getBytes("UTF-8");
             String encoded = Base64.getEncoder().encodeToString(message);
             conn.setRequestProperty("Authorization", "Basic " + encoded);
@@ -93,7 +93,7 @@ public class RestClient {
                 response.append(inputLine);
             }
             in.close();
-
+// TODO what about other reposnse codes
             if (responseCode == 200) {
 //                Cookie: X-CSRF-TOKEN=8701b4cf97ee0e6b08dc003495f46c8028c87c23; JSESSIONID=0b904b9034e1e853a4674de94885
                 String sessionID = "";
@@ -161,6 +161,7 @@ public class RestClient {
                 OutputStream output = conn.getOutputStream();
                 output.write(requestBody.getBytes("UTF-8"));
             }
+            // TODO close BufferedReader, OutputStream in finally
             BufferedReader br = new BufferedReader(new InputStreamReader(
                     (conn.getInputStream())));
             String response = "";
@@ -198,7 +199,7 @@ public class RestClient {
             conn.setRequestMethod("POST");
             conn.setDoOutput(true);
             conn.setRequestProperty("Content-Type", "multipart/form-data;boundary=" + boundary);
-
+            // TODO close open streams
             DataOutputStream request = new DataOutputStream(conn.getOutputStream());
             request.writeBytes("--" + boundary + "\r\n");
             request.writeBytes("Content-Disposition: form-data; name=\"file\"; filename=\"" + templateFile.getName() + "\"\r\n\r\n");

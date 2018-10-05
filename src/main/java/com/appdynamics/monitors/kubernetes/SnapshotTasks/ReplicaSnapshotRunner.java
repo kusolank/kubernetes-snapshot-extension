@@ -72,6 +72,7 @@ public class ReplicaSnapshotRunner extends SnapshotRunnerBase {
                 getConfiguration().getExecutorService().execute("UploadRSMetricsTask", metricsTask);
 
             } catch (IOException e) {
+                // TODO countdown the latch in case of exception, just like you have in PodSnapshotRunner
                 logger.error("Failed to push ReplicaSet data", e);
                 e.printStackTrace();
             } catch (Exception e) {
