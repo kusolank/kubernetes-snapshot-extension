@@ -1,5 +1,5 @@
 # Number of Threads for the Extension
-numberOfThreads: 23 # 7 tasks x 3 sub tasks + 2 extra
+numberOfThreads: 38 # 12 tasks x 3 sub tasks + 2 extra
 
 # <appTierName> must match the value in appTierName setting
 metricPrefix: "Server|Component:<appTierName>|Custom Metrics|Cluster Stats|"
@@ -35,6 +35,16 @@ rsSchemaName: "k8s_rs_snapshots"
 
 endpointSchemaName: "k8s_endpoint_snapshots"
 
+podsCrashStatusSchemaName: "k8s_pod_crash_status_snapshots"
+
+notRunningPodCountPerNodeSchemaName: "k8s_not_running_pod_count_per_node_snapshots"
+    
+podStatusMonitorSchemaName: "k8s_pod_status_monitor_snapshots"
+    
+podResourceQuotaSchemaName: "k8s_pod_resource_quota_snapshots"
+    
+namespaceQuotaUtilizationSchemaName: "k8s_namespace_resoource_quota_utilization_snapshots"
+
 batchSize: "100"
 
 #APPD_PROXY_HOST
@@ -55,6 +65,12 @@ entities:
 - type: "replica"
 - type: "event"
 - type: "endpoint"
+- type: "podResourceQuota"
+- type: "podResourceQuota"
+- type: "podStatusMonitor" 
+- type: "podCrashStatus"
+- type: "namespaceQuotaUtilization"
+- type: "notRunningPodsPerNode"
 
 # list of nodes to collect metrics for. If all nodes need to be monitored, set name to "all"
 nodes:
@@ -90,7 +106,10 @@ eventsUrl: "https://analytics.api.appdynamics.com"  # EVENTS_API_URL env var
 podsSchemaDefinition: '{
    "schema" : {
       "object_uid": "string",
+      "openShiftVersion": "string",
+      "hall": "string",
       "clusterName": "string",
+      "deploymentName": "string",
       "creationTimestamp": "date",
       "deletionTimestamp": "date",
       "labels": "string",
@@ -136,7 +155,7 @@ podsSchemaDefinition: '{
       "terminationTime": "date",
       "mounts": "string"
    }
-}'
+ }'
 
 nodeSchemaDefinition: '{
   "schema" : {
@@ -167,7 +186,7 @@ nodeSchemaDefinition: '{
       "memoryPressure": "string",
       "diskPressure": "string"
   }
-}'
+ }'
 
 eventsSchemaDefinition: '{
    "schema" : {
@@ -199,7 +218,7 @@ eventsSchemaDefinition: '{
       "source_host": "string",
       "reason": "string"
    }
-}'
+ }'
 
 
 deploySchemaDefinition: '{
@@ -225,7 +244,7 @@ deploySchemaDefinition: '{
     "collisionCount": "integer",
     "replicasReady": "integer"
   }
-}'
+ }'
 
 daemonSchemaDefinition: '{
   "schema": {
@@ -246,7 +265,7 @@ daemonSchemaDefinition: '{
     "missScheduled": "integer",
     "updatedNumberScheduled": "integer"
   }
-}'
+ }'
 
 
 rsSchemaDefinition: '{
@@ -264,7 +283,7 @@ rsSchemaDefinition: '{
     "replicasLabeled": "integer",
     "replicasReady": "integer"
   }
-}'
+ }'
 
 endpointSchemaDefinition: '{
   "schema": {
@@ -278,5 +297,83 @@ endpointSchemaDefinition: '{
     "ip_down": "integer",
     "downContext": "string"
   }
-}'
+ }'
 
+podResourceQuotaSchemaDefinition: '{
+  "schema": {
+    "clusterName": "string",
+    "openshiftVersion": "string",
+    "msServiceName": "string",
+    "msPodCount": "integer",
+    "msCpuRequest": "float",
+   	"msCpuLimit": "float",
+   	"msMemoryRequests": "float",
+   	"msMemoryLimits": "float"
+   }
+ }'
+
+namespaceQuotaUtilizationSchemaDefinition: '{
+   "schema": {
+    "clusterName": "string",
+    "openshiftPlatform": "string",
+    "cpuRequestUsed": "float",
+    "cpuRequestTotal": "float",
+    "cpuLimitsUsed": "float",
+    "cpuLimitsTotal": "float",
+    "memoryRequestUsed": "float",
+    "memoryRequestTotal": "float",
+    "memoryLimitsUsed": "float",
+    "memoryLimitsTotal": "float"
+  }
+ }'
+
+podStatusMonitorSchemaDefinition: '{
+   "schema": {
+     "clusterName": "string",
+     "openshiftVersion": "string",
+     "hall": "string",
+     "nodeName": "string",
+     "namespace": "string",
+     "containerName": "string",
+     "deploymentName": "string",
+     "podName": "string",
+     "errorReason": "string",
+     "containerPhase": "string",
+     "notRunningPodCount": "integer",
+     "restartCount": "integer"
+   }
+ }'
+
+notRunningPodCountPerNodeSchemaDefinition: '{
+   "schema": {
+      "clusterName": "string",
+      "hall": "string",
+      "openshiftVersion": "string",
+      "nodeName": "string",
+      "containerStatus": "string",
+      "notRunningPodCount": "integer",
+      "labels": "string"
+    }
+ }'
+ 
+podsCrashStatusSchemaDefinition: '{
+  "schema": {
+    "clusterName": "string",
+    "openshiftVersion": "string",
+    "hall": "string",
+    "nodeName": "string",
+    "namespace": "string",
+    "deploymentName": "string",
+    "containers": {
+        "type": "object",
+        "additionalProperties": {
+           "type": "string"
+          }
+      },
+     "podName": "string",
+     "errorReason": "string",
+     "containerPhase": "string",
+     "crashCount": "integer",
+     "restartCount": "integer"
+    }
+  }'

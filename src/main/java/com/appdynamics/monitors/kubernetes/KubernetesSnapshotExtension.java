@@ -36,7 +36,14 @@ public class KubernetesSnapshotExtension extends ABaseMonitor {
             CONFIG_ENTITY_TYPE_DEPLOYMENT,
             CONFIG_ENTITY_TYPE_DAEMON,
             CONFIG_ENTITY_TYPE_ENDPOINT,
-            CONFIG_ENTITY_TYPE_REPLICA};
+            CONFIG_ENTITY_TYPE_REPLICA,
+            CONFIG_ENTITY_TYPE_POD_STATUS_MONITOR,
+            CONFIG_ENTITY_TYPE_POD_RESOURCE_QUOTA,
+            CONFIG_ENTITY_TYPE_POD_CRASH_STATUS,
+            CONFIG_ENTITY_TYPE_NAMESPACE_QUOTA_UTILIZATION,
+            CONFIG_ENTITY_TYPE_NOT_RUNNING_PODS_PER_NODE
+            
+    };
 
     private CountDownLatch latch;
     public KubernetesSnapshotExtension() { logger.info(String.format("Using Kubernetes Snapshot Extension Version [%s]", getImplementationVersion())); }
@@ -162,6 +169,22 @@ public class KubernetesSnapshotExtension extends ABaseMonitor {
             case CONFIG_ENTITY_TYPE_EVENT:
                 task = new EventSnapshotRunner(tasksExecutionServiceProvider, config, latch);
                 break;
+            case CONFIG_ENTITY_TYPE_POD_STATUS_MONITOR:
+                task = new PodStatusMonitorSnapshotRunner(tasksExecutionServiceProvider, config, latch);
+                break;
+            case CONFIG_ENTITY_TYPE_POD_RESOURCE_QUOTA:
+                task = new PodResourceQuotaSnapshotRunner(tasksExecutionServiceProvider, config, latch);
+                break;
+            case CONFIG_ENTITY_TYPE_POD_CRASH_STATUS:
+                task = new PodCrashStatusSnapshotRunner(tasksExecutionServiceProvider, config, latch);
+                break;
+            case CONFIG_ENTITY_TYPE_NOT_RUNNING_PODS_PER_NODE:
+                task = new NodeWiseNotRunningPodsSnapshotRunner(tasksExecutionServiceProvider, config, latch);
+                break;
+            case CONFIG_ENTITY_TYPE_NAMESPACE_QUOTA_UTILIZATION:
+                task = new NamespaceQuotaUtilizationSnapshotRunner(tasksExecutionServiceProvider, config, latch);
+                break;              
+                
         }
         return task;
     }
@@ -192,7 +215,7 @@ public class KubernetesSnapshotExtension extends ABaseMonitor {
             //check if tier name is already in the metricsPath
             String path = Utilities.getMetricsPath(config);
             if (path.contains(Utilities.getClusterTierName(config))){
-                logger.info("Tier name {} is already configured in the metricPath. Validation complete");
+                logger.info("Tier name {} is already configured in the metricPath. Validation complete",Utilities.getClusterTierName(config));
                 return true;
             }
 

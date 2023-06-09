@@ -1,5 +1,35 @@
 package com.appdynamics.monitors.kubernetes;
 
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_APP_NAME;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_APP_TIER_NAME;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_CONTROLLER_URL;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_ENTITY_TYPE;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_EVENTS_API_KEY;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_EVENTS_URL;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_GLOBAL_ACCOUNT_NAME;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_NODE_NAMESPACES;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_NODE_NODES;
+import static com.appdynamics.monitors.kubernetes.Constants.DEFAULT_METRIC_PREFIX_NAME;
+import static com.appdynamics.monitors.kubernetes.Constants.METRIC_PATH_NAMESPACES;
+import static com.appdynamics.monitors.kubernetes.Constants.METRIC_PATH_NODES;
+import static com.appdynamics.monitors.kubernetes.Constants.METRIC_SEPARATOR;
+import static com.appdynamics.monitors.kubernetes.Constants.METRIC_PATH_MICRO_SERVICES;
+
+import java.io.File;
+import java.math.BigDecimal;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.nio.charset.Charset;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.appdynamics.extensions.conf.MonitorConfiguration;
 import com.appdynamics.monitors.kubernetes.Models.AdqlSearchObj;
 import com.appdynamics.monitors.kubernetes.Models.SummaryObj;
@@ -7,20 +37,13 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.kubernetes.client.ApiClient;
+
+import io.fabric8.kubernetes.api.model.Quantity;
+import io.fabric8.openshift.client.DefaultOpenShiftClient;
+import io.fabric8.openshift.client.OpenShiftClient;
+import io.kubernetes.client.openapi.models.V1Node;
+import io.kubernetes.client.openapi.models.V1Pod;
 import io.kubernetes.client.util.Config;
-import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.io.File;
-import java.math.BigDecimal;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.nio.charset.Charset;
-import java.util.*;
-
-import static com.appdynamics.monitors.kubernetes.Constants.*;
 
 public class Utilities {
     private static final Logger logger = LoggerFactory.getLogger(Utilities.class);
@@ -205,6 +228,34 @@ public class Utilities {
 
         return obj;
     }
+    
+    public static SummaryObj checkAddObject(SummaryObj summaryObj, String object, String fieldName){
+    	 if (summaryObj == null){
+             return null;
+         }
+    	 
+    	 ObjectNode obj = summaryObj.getData();
+         if(obj != null && obj.has(fieldName)) {
+            
+             obj.put(fieldName,  object);
+         }
+    	
+        return summaryObj;
+    }
+    
+    public static SummaryObj checkAndInt(SummaryObj summaryObj, String object, String fieldName){
+   	 if (summaryObj == null){
+            return null;
+        }
+   	 
+   	 ObjectNode obj = summaryObj.getData();
+        if(obj != null && obj.has(fieldName)) {
+           
+            obj.put(fieldName,  object);
+        }
+   	
+       return summaryObj;
+   }
 
     public static ObjectNode incrementField(SummaryObj summaryObj, String fieldName, int increment){
         if (summaryObj == null){
@@ -276,12 +327,50 @@ public class Utilities {
     }
 
     public static String getMetricsPath(Map<String, String> config, String namespace, String node){
+    	if(node==null || node.isEmpty()) {
+    		node=ALL;
+    		logger.error("node is empty setting it to "+node);
+    	}
+    	if(namespace==null || namespace.isEmpty()) {
+    		namespace=ALL;
+    		logger.error("namespace is empty setting it to "+namespace);
+    	}
         if(!node.equals(ALL)){
-            return String.format("%s%s%s%s%s", Utilities.getMetricsPath(config), METRIC_SEPARATOR, METRIC_PATH_NODES, METRIC_SEPARATOR, node);
+        	
+        	if(Globals.NODE_ROLE_MAP.containsKey(node)) {
+        		return String.format("%s%s%s%s%s%s%s", Utilities.getMetricsPath(config), METRIC_SEPARATOR, METRIC_PATH_NODES, METRIC_SEPARATOR,Globals.NODE_ROLE_MAP.get(node),METRIC_SEPARATOR, node);
+        	}else {
+        		return String.format("%s%s%s%s%s", Utilities.getMetricsPath(config), METRIC_SEPARATOR, METRIC_PATH_NODES, METRIC_SEPARATOR, node);
+        	}
+            
         }
         else if (!namespace.equals(ALL)){
             return String.format("%s%s%s%s%s", Utilities.getMetricsPath(config), METRIC_SEPARATOR, METRIC_PATH_NAMESPACES, METRIC_SEPARATOR, namespace);
         }
+
+        return getMetricsPath(config);
+    }
+    
+    
+    public static String getMetricsPath(Map<String, String> config, String microService){
+
+        if (microService.isEmpty()){
+        	 return getMetricsPath(config);
+            
+        }
+        return String.format("%s%s%s%s%s", Utilities.getMetricsPath(config), METRIC_SEPARATOR, METRIC_PATH_MICRO_SERVICES, METRIC_SEPARATOR, microService);
+       
+    }
+    
+    public static String getMetricsPath(Map<String, String> config, String namespace, String node,String role){
+        if(!node.equals(ALL)){
+            return String.format("%s%s%s%s%s%s%s", Utilities.getMetricsPath(config), METRIC_SEPARATOR, METRIC_PATH_NODES, METRIC_SEPARATOR,role,METRIC_SEPARATOR, node);
+        }
+        else if (!namespace.equals(ALL)){
+            return String.format("%s%s%s%s%s", Utilities.getMetricsPath(config), METRIC_SEPARATOR, METRIC_PATH_NAMESPACES, METRIC_SEPARATOR, namespace);
+        }
+ 
+       
 
         return getMetricsPath(config);
     }
@@ -380,8 +469,9 @@ public class Utilities {
         return theObj;
     }
 
-    public static ApiClient initClient(Map<String, String> config) throws Exception{
-        ApiClient client;
+ 
+    public static io.kubernetes.client.openapi.ApiClient initClient(Map<String, String> config) throws Exception{
+        io.kubernetes.client.openapi.ApiClient client;
         String apiMode = System.getenv("K8S_API_MODE");
         if (StringUtils.isNotEmpty(apiMode) == false){
             apiMode = config.get("apiMode");
@@ -429,4 +519,50 @@ public class Utilities {
         return  url;
     }
 
+    
+    public static String getOpenShiftVersion() {
+    	String version=""; 
+    	try (OpenShiftClient client = new DefaultOpenShiftClient()) {
+             // Retrieve the version information
+             version = client.getOpenShiftV4Version();           
+              logger.info("OpenShift Version is {}",version);    
+         } catch (Exception e) {
+             logger.error("Exception when retrieving OpenShift version: " + e.getMessage(),e);
+         }
+		return version;
+    }
+    
+   
+    
+    public static String  getHall(V1Pod pod) {
+	    String hall = "";
+
+	    // Retrieve the labels from the Pod's metadata
+	    Map<String, String> labels = pod.getMetadata().getLabels();
+
+	    // Check if the labels contain a specific key for hall information
+	    if (labels != null && labels.containsKey("hall")) {
+	        hall = labels.get("hall");
+	    }
+
+	    return hall;
+	}
+    
+    public static String  getHall(V1Node node) {
+	    String hall = "";
+
+	    // Retrieve the labels from the node's metadata
+	    Map<String, String> labels = node.getMetadata().getLabels();
+
+	    // Check if the labels contain a specific key for hall information
+	    if (labels != null && labels.containsKey("hall")) {
+	        hall = labels.get("hall");
+	    }
+
+	    return hall;
+	}
+
+
+	
+    
 }

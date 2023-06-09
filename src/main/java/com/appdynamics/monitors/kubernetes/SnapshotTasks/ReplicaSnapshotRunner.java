@@ -1,21 +1,13 @@
 package com.appdynamics.monitors.kubernetes.SnapshotTasks;
 
-import com.appdynamics.extensions.TasksExecutionServiceProvider;
-import com.appdynamics.extensions.metrics.Metric;
-import com.appdynamics.extensions.util.AssertUtils;
-import com.appdynamics.monitors.kubernetes.Metrics.UploadMetricsTask;
-import com.appdynamics.monitors.kubernetes.Models.AppDMetricObj;
-import com.appdynamics.monitors.kubernetes.Models.SummaryObj;
-import com.appdynamics.monitors.kubernetes.RestClient;
-import com.appdynamics.monitors.kubernetes.Utilities;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.kubernetes.client.ApiClient;
-import io.kubernetes.client.Configuration;
-import io.kubernetes.client.apis.ExtensionsV1beta1Api;
-import io.kubernetes.client.models.V1beta1ReplicaSet;
-import io.kubernetes.client.models.V1beta1ReplicaSetList;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_RECS_BATCH_SIZE;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_DEF_RS;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_NAME_RS;
+import static com.appdynamics.monitors.kubernetes.Utilities.ALL;
+import static com.appdynamics.monitors.kubernetes.Utilities.checkAddInt;
+import static com.appdynamics.monitors.kubernetes.Utilities.checkAddObject;
+import static com.appdynamics.monitors.kubernetes.Utilities.ensureSchema;
+import static com.appdynamics.monitors.kubernetes.Utilities.incrementField;
 
 import java.io.IOException;
 import java.net.URL;
@@ -24,10 +16,22 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 
-import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_RECS_BATCH_SIZE;
-import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_DEF_RS;
-import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_NAME_RS;
-import static com.appdynamics.monitors.kubernetes.Utilities.*;
+import com.appdynamics.extensions.TasksExecutionServiceProvider;
+import com.appdynamics.extensions.metrics.Metric;
+import com.appdynamics.extensions.util.AssertUtils;
+import com.appdynamics.monitors.kubernetes.Utilities;
+import com.appdynamics.monitors.kubernetes.Metrics.UploadMetricsTask;
+import com.appdynamics.monitors.kubernetes.Models.AppDMetricObj;
+import com.appdynamics.monitors.kubernetes.Models.SummaryObj;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
+import io.kubernetes.client.openapi.ApiClient;
+import io.kubernetes.client.openapi.Configuration;
+import io.kubernetes.client.openapi.apis.AppsV1Api;
+import io.kubernetes.client.openapi.models.V1ReplicaSet;
+import io.kubernetes.client.openapi.models.V1ReplicaSetList;
 
 public class ReplicaSnapshotRunner extends SnapshotRunnerBase {
     public ReplicaSnapshotRunner(){
@@ -54,14 +58,23 @@ public class ReplicaSnapshotRunner extends SnapshotRunnerBase {
             URL publishUrl = ensureSchema(config, apiKey, accountName, CONFIG_SCHEMA_NAME_RS, CONFIG_SCHEMA_DEF_RS);
 
             try {
-                V1beta1ReplicaSetList rsList;
+                V1ReplicaSetList rsList;
                 try {
                     ApiClient client = Utilities.initClient(config);
                     this.setAPIServerTimeout(client, K8S_API_TIMEOUT);
                     Configuration.setDefaultApiClient(client);
-                    ExtensionsV1beta1Api api = new ExtensionsV1beta1Api();
-                    this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
-                    rsList = api.listReplicaSetForAllNamespaces(null, null, true, null, null, null, null, null, null);
+                    AppsV1Api api = new AppsV1Api();
+                    
+                    rsList = api.listReplicaSetForAllNamespaces(
+                    		false, 
+                    		null, 
+                    		null, 
+                    		null, 
+                    		null, 
+                    		null, 
+                    		null, 
+                    		null, 
+                    		K8S_API_TIMEOUT, false);
                 }
                 catch (Exception ex){
                     throw new Exception("Unable to connect to Kubernetes API server because it may be unavailable or the cluster credentials are invalid", ex);
@@ -86,13 +99,13 @@ public class ReplicaSnapshotRunner extends SnapshotRunnerBase {
         }
     }
 
-     ArrayNode createReplicasetPayload(V1beta1ReplicaSetList rsList, Map<String, String> config, URL publishUrl, String accountName, String apiKey) {
+     ArrayNode createReplicasetPayload(V1ReplicaSetList rsList, Map<String, String> config, URL publishUrl, String accountName, String apiKey) {
         ObjectMapper mapper = new ObjectMapper();
         ArrayNode arrayNode = mapper.createArrayNode();
 
         long batchSize = Long.parseLong(config.get(CONFIG_RECS_BATCH_SIZE));
 
-        for (V1beta1ReplicaSet deployItem : rsList.getItems()) {
+        for (V1ReplicaSet deployItem : rsList.getItems()) {
             ObjectNode deployObject = mapper.createObjectNode();
 
             String namespace = deployItem.getMetadata().getNamespace();
@@ -209,16 +222,16 @@ public class ReplicaSnapshotRunner extends SnapshotRunnerBase {
 
         if (namespace.equals(ALL)) {
             metricsList.add(new AppDMetricObj("ReplicaSets", parentSchema, CONFIG_SCHEMA_DEF_RS,
-                    String.format("select * from %s where clusterName = \"%s\" %s", parentSchema, clusterName, filter), rootPath, namespace, ALL));
+                    String.format("select * from %s where clusterName = \"%s\" %s", parentSchema, clusterName, filter), rootPath, namespace, ALL,null));
 
             metricsList.add(new AppDMetricObj("RsReplicas", parentSchema, CONFIG_SCHEMA_DEF_RS,
-                    String.format("select * from %s where replicas > 0 and clusterName = \"%s\" %s", parentSchema, clusterName, filter), rootPath, namespace, ALL));
+                    String.format("select * from %s where replicas > 0 and clusterName = \"%s\" %s", parentSchema, clusterName, filter), rootPath, namespace, ALL,null));
 
             metricsList.add(new AppDMetricObj("RsReplicasAvailable", parentSchema, CONFIG_SCHEMA_DEF_RS,
-                    String.format("select * from %s where rsReplicasAvailable > 0 and clusterName = \"%s\" %s", parentSchema, clusterName, filter), rootPath, namespace, ALL));
+                    String.format("select * from %s where rsReplicasAvailable > 0 and clusterName = \"%s\" %s", parentSchema, clusterName, filter), rootPath, namespace, ALL,null));
 
             metricsList.add(new AppDMetricObj("RsReplicasUnAvailable", parentSchema, CONFIG_SCHEMA_DEF_RS,
-                    String.format("select * from %s where rsReplicasAvailable = 0 and clusterName = \"%s\" %s", parentSchema, clusterName, filter), rootPath, namespace, ALL));
+                    String.format("select * from %s where rsReplicasAvailable = 0 and clusterName = \"%s\" %s", parentSchema, clusterName, filter), rootPath, namespace, ALL,null));
         }
 
         return metricsList;

@@ -1,31 +1,37 @@
 package com.appdynamics.monitors.kubernetes.SnapshotTasks;
 
-import com.appdynamics.extensions.TasksExecutionServiceProvider;
-import com.appdynamics.extensions.metrics.Metric;
-import com.appdynamics.extensions.util.AssertUtils;
-import com.appdynamics.monitors.kubernetes.Metrics.UploadMetricsTask;
-import com.appdynamics.monitors.kubernetes.Models.AppDMetricObj;
-import com.appdynamics.monitors.kubernetes.Models.SummaryObj;
-import com.appdynamics.monitors.kubernetes.RestClient;
-import com.appdynamics.monitors.kubernetes.Utilities;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import io.kubernetes.client.ApiClient;
-import io.kubernetes.client.Configuration;
-import io.kubernetes.client.apis.ExtensionsV1beta1Api;
-import io.kubernetes.client.models.ExtensionsV1beta1Deployment;
-import io.kubernetes.client.models.ExtensionsV1beta1DeploymentList;
-
-import java.io.IOException;
-import java.net.URL;
-import java.util.*;
-import java.util.concurrent.CountDownLatch;
-
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_RECS_BATCH_SIZE;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_DEF_DEPLOY;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_NAME_DEPLOY;
-import static com.appdynamics.monitors.kubernetes.Utilities.*;
+import static com.appdynamics.monitors.kubernetes.Utilities.ALL;
+import static com.appdynamics.monitors.kubernetes.Utilities.checkAddInt;
+import static com.appdynamics.monitors.kubernetes.Utilities.checkAddObject;
+import static com.appdynamics.monitors.kubernetes.Utilities.incrementField;
+
+import java.io.IOException;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+
+import com.appdynamics.extensions.TasksExecutionServiceProvider;
+import com.appdynamics.extensions.metrics.Metric;
+import com.appdynamics.extensions.util.AssertUtils;
+import com.appdynamics.monitors.kubernetes.Utilities;
+import com.appdynamics.monitors.kubernetes.Metrics.UploadMetricsTask;
+import com.appdynamics.monitors.kubernetes.Models.AppDMetricObj;
+import com.appdynamics.monitors.kubernetes.Models.SummaryObj;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
+import io.kubernetes.client.openapi.ApiClient;
+import io.kubernetes.client.openapi.Configuration;
+import io.kubernetes.client.openapi.apis.AppsV1Api;
+import io.kubernetes.client.openapi.models.V1Deployment;
+import io.kubernetes.client.openapi.models.V1DeploymentList;
 
 public class DeploymentSnapshotRunner extends SnapshotRunnerBase {
 
@@ -54,17 +60,30 @@ public class DeploymentSnapshotRunner extends SnapshotRunnerBase {
             URL publishUrl = Utilities.ensureSchema(config, apiKey, accountName,CONFIG_SCHEMA_NAME_DEPLOY, CONFIG_SCHEMA_DEF_DEPLOY);
 
             try {
-                ExtensionsV1beta1DeploymentList deployList;
+                V1DeploymentList deployList;
 
                 try {
 
                     ApiClient client = Utilities.initClient(config);
                     this.setAPIServerTimeout(client, K8S_API_TIMEOUT);
                     Configuration.setDefaultApiClient(client);
-                    ExtensionsV1beta1Api api = new ExtensionsV1beta1Api();
-                    this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
+//                    ExtensionsV1beta1Api api = new ExtensionsV1beta1Api();
+//                    this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
+                    
+                    AppsV1Api api = new AppsV1Api();
                     deployList =
-                            api.listDeploymentForAllNamespaces(null, null, true, null, null, null, null, null, null);
+                            api.listDeploymentForAllNamespaces(
+                            		false, //allow Watch bookmarks
+                            		null,  //_continue - relevant for pagination
+                            		null,  //fieldSelector
+                            		null,  //labelSelector
+                            		null,  //limit the number of records
+                            		null,  //pretty output
+                            		null,  //resourseVersion
+                            		null,  //resourceVersionMatch
+                            		K8S_API_TIMEOUT, //timeout in sec
+                            		false // isWatch
+                            		);
                 }
                 catch (Exception ex){
                     throw new Exception("Unable to connect to Kubernetes API server because it may be unavailable or the cluster credentials are invalid", ex);
@@ -88,13 +107,13 @@ public class DeploymentSnapshotRunner extends SnapshotRunnerBase {
     }
 
 
-    private ArrayNode createDeployPayload(ExtensionsV1beta1DeploymentList deployList, Map<String, String> config, URL publishUrl, String accountName, String apiKey){
+    private ArrayNode createDeployPayload(V1DeploymentList deployList, Map<String, String> config, URL publishUrl, String accountName, String apiKey){
         ObjectMapper mapper = new ObjectMapper();
         ArrayNode arrayNode = mapper.createArrayNode();
 
         long batchSize = Long.parseLong(config.get(CONFIG_RECS_BATCH_SIZE));
 
-        for(ExtensionsV1beta1Deployment deployItem : deployList.getItems()) {
+        for(V1Deployment deployItem : deployList.getItems()) {
             ObjectNode deployObject = mapper.createObjectNode();
 
             String namespace = deployItem.getMetadata().getNamespace();
@@ -250,16 +269,16 @@ public class DeploymentSnapshotRunner extends SnapshotRunnerBase {
 
         if(namespace.equals(ALL)) {
             metricsList.add(new AppDMetricObj("Deployments", parentSchema, CONFIG_SCHEMA_DEF_DEPLOY,
-                    String.format("select * from %s where clusterName = \"%s\" %s", parentSchema, clusterName, filter), rootPath, namespace, ALL));
+                    String.format("select * from %s where clusterName = \"%s\" %s", parentSchema, clusterName, filter), rootPath, namespace, ALL,null));
 
             metricsList.add(new AppDMetricObj("DeployReplicas", parentSchema, CONFIG_SCHEMA_DEF_DEPLOY,
-                    String.format("select * from %s where replicas > 0 and clusterName = \"%s\" %s", parentSchema, clusterName, filter), rootPath, namespace, ALL));
+                    String.format("select * from %s where replicas > 0 and clusterName = \"%s\" %s", parentSchema, clusterName, filter), rootPath, namespace,  ALL,null));
 
             metricsList.add(new AppDMetricObj("DeployReplicasUnAvailable", parentSchema, CONFIG_SCHEMA_DEF_DEPLOY,
-                    String.format("select * from %s where replicasUnAvailable > 0 and clusterName = \"%s\" %s", parentSchema, clusterName, filter), rootPath, namespace, ALL));
+                    String.format("select * from %s where replicasUnAvailable > 0 and clusterName = \"%s\" %s", parentSchema, clusterName, filter), rootPath, namespace,  ALL,null));
 
             metricsList.add(new AppDMetricObj("DeployCollisionCount", parentSchema, CONFIG_SCHEMA_DEF_DEPLOY,
-                    String.format("select * from %s where collisionCount > 0 and clusterName = \"%s\" %s", parentSchema, clusterName, filter), rootPath, namespace, ALL));
+                    String.format("select * from %s where collisionCount > 0 and clusterName = \"%s\" %s", parentSchema, clusterName, filter), rootPath, namespace,  ALL,null));
         }
         return metricsList;
     }

@@ -1,14 +1,21 @@
 package com.appdynamics.monitors.kubernetes;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.commons.lang3.StringUtils;
-import org.bouncycastle.util.encoders.UrlBase64;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_CONTROLLER_API_USER;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_DASH_TEMPLATE_PATH;
 
-import java.io.*;
-import java.net.*;
+import java.io.BufferedReader;
+import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.Authenticator;
+import java.net.HttpURLConnection;
+import java.net.InetSocketAddress;
+import java.net.PasswordAuthentication;
+import java.net.Proxy;
+import java.net.URL;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
@@ -16,9 +23,12 @@ import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_CONTROLLER_API_USER;
-import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_CONTROLLER_URL;
-import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_DASH_TEMPLATE_PATH;
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class RestClient {
     private static final Logger logger = LoggerFactory.getLogger(RestClient.class);
