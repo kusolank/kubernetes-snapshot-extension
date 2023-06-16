@@ -186,6 +186,8 @@ public class NamespaceQuotaUtilizationSnapshotRunner  extends SnapshotRunnerBase
 	        objectNode = checkAddFloat(objectNode,metrics.get("MemoryLimitsTotal"), "memoryLimitsTotal");
 	        objectNode = checkAddFloat(objectNode,metrics.get("MemoryLimitsUsed"), "memoryLimitsUsed");
 		     
+            ObjectNode labelsObject = Utilities.getResourceLabels(config,mapper, namespaceObj);
+            objectNode.set("customLabels", labelsObject);
 	        String clusterName = Utilities.ensureClusterName(config, namespaceObj.getMetadata().getClusterName());
 	        SummaryObj summary = getSummaryMap().get(ALL);
             if (summary == null) {

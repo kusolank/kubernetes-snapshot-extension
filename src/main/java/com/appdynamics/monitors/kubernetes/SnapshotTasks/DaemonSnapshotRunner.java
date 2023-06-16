@@ -128,6 +128,8 @@ public class DaemonSnapshotRunner extends SnapshotRunnerBase{
                 }
             }
 
+            ObjectNode labelsObject = Utilities.getResourceLabels(config,mapper, deployItem);
+            deployObject.set("customLabels", labelsObject);
             incrementField(summary, "DaemonSets");
             incrementField(summaryNamespace, "DaemonSets");
 

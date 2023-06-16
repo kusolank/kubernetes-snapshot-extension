@@ -131,8 +131,8 @@ kind: ClusterRole
 metadata:
   name: clusterversions-reader
 rules:
-- apiGroups: ["config.openshift.io"]
-  resources: ["clusterversions"]
+- apiGroups: ["config.openshift.io","metrics.k8s.io"]
+  resources: ["clusterversions","pods"]
   verbs: ["get", "list"]
 
 ---
@@ -144,7 +144,7 @@ metadata:
 subjects:
 - kind: ServiceAccount
   name: k8s-monitor-sa
-  namespace: default
+  namespace: #<namespace where K8s-monitor-sa was created>
 roleRef:
   kind: ClusterRole
   name: clusterversions-reader

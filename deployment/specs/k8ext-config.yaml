@@ -39,7 +39,7 @@ data:
     
     podResourceQuotaSchemaName: "k8s_pod_resource_quota_snapshots"
     
-    namespaceQuotaUtilizationSchemaName: "k8s_namespace_resoource_quota_utilization_snapshots"
+    namespaceQuotaUtilizationSchemaName: "k8s_namespace_resource_quota_utilization_snapshots"
     
     podStatusMonitorSchemaName: "k8s_pod_status_monitor_snapshots"
     
@@ -54,6 +54,7 @@ data:
     proxyUser: ""
     proxyPass: ""
 
+    customTags: #Add comma seperated tags/lables which needs to captured these will captured from resource metadata
 
     entities:
     - type: "pod"
@@ -104,7 +105,11 @@ data:
        "schema" : {
           "object_uid": "string",
           "openShiftVersion": "string",
-          "hall": "string",
+          "customLabels": {
+            "type": "object",
+            "properties": {
+            }
+          },
           "clusterName": "string",
           "deploymentName": "string",
           "creationTimestamp": "date",
@@ -157,6 +162,12 @@ data:
     nodeSchemaDefinition: '{
       "schema" : {
           "nodeName": "string",
+          "openShiftVersion": "string",
+          "customLabels": {
+            "type": "object",
+            "properties": {}
+            }
+          },
           "clusterName": "string",
           "podCIDR": "string",
           "taints": "string",
@@ -188,6 +199,13 @@ data:
     eventsSchemaDefinition: '{
        "schema" : {
           "firstTimestamp": "date",
+          "openShiftVersion": "string",
+          "customLabels": {
+            "type": "object",
+            "properties": {}
+            }
+          },
+          "openShiftVersion": "string",
           "object_kind": "string",
           "object_name": "string",
           "object_namespace": "string",
@@ -222,6 +240,11 @@ data:
       "schema": {
         "clusterName": "string",
         "name": "string",
+        "openShiftVersion": "string",
+        "customLabels": {
+          "type": "object",
+          "properties": {}
+        },
         "namespace": "string",
         "object_uid": "string",
         "creationTimestamp": "date",
@@ -246,7 +269,13 @@ data:
     daemonSchemaDefinition: '{
       "schema": {
         "clusterName": "string",
+        "openShiftVersion": "string",
         "name": "string",
+        "customLabels": {
+          "type": "object",
+          "properties": {
+          }
+        },
         "namespace": "string",
         "object_uid": "string",
         "creationTimestamp": "date",
@@ -268,8 +297,14 @@ data:
     rsSchemaDefinition: '{
       "schema": {
         "clusterName": "string",
+        "openShiftVersion": "string",
         "name": "string",
         "namespace": "string",
+        "customLabels": {
+          "type": "object",
+          "properties": {
+          }
+        },
         "object_uid": "string",
         "creationTimestamp": "date",
         "deletionTimestamp": "date",
@@ -286,6 +321,7 @@ data:
       "schema": {
         "name": "string",
         "clusterName": "string",
+        "openShiftVersion": "string",
         "namespace": "string",
         "object_uid": "string",
         "creationTimestamp": "date",
@@ -299,7 +335,12 @@ data:
     podResourceQuotaSchemaDefinition: '{
       "schema": {
         "clusterName": "string",
-        "openshiftVersion": "string",
+        "openShiftVersion": "string",
+        "customLabels": {
+          "type": "object",
+          "properties": {
+          }
+        },
         "msServiceName": "string",
         "podCount": "integer",
         "cpuRequest": "float",
@@ -312,6 +353,11 @@ data:
     namespaceQuotaUtilizationSchemaDefinition: '{
        "schema": {
         "clusterName": "string",
+        "customLabels": {
+          "type": "object",
+          "properties": {
+          }
+        },
         "openshiftPlatform": "string",
         "cpuRequestUsed": "float",
         "cpuRequestTotal": "float",
@@ -328,7 +374,11 @@ data:
        "schema": {
          "clusterName": "string",
          "openshiftVersion": "string",
-         "hall": "string",
+         "customLabels": {
+           "type": "object",
+           "properties": {
+          }
+         },
          "nodeName": "string",
          "namespace": "string",
          "containerName": "string",
@@ -344,7 +394,11 @@ data:
     notRunningPodCountPerNodeSchemaDefinition: '{
        "schema": {
           "clusterName": "string",
-          "hall": "string",
+          "customLabels": {
+             "type": "object",
+             "properties": {
+              }
+      	  },
           "openshiftVersion": "string",
           "nodeName": "string",
           "containerStatus": "string",
@@ -357,15 +411,17 @@ data:
       "schema": {
         "clusterName": "string",
         "openshiftVersion": "string",
-        "hall": "string",
+        "customLabels": {
+          "type": "object",
+          "properties": {
+          }
+      	},
         "nodeName": "string",
         "namespace": "string",
         "deploymentName": "string",
         "containers": {
             "type": "object",
             "additionalProperties": {
-               "type": "string"
-              }
           },
          "podName": "string",
          "errorReason": "string",

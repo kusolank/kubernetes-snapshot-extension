@@ -110,7 +110,7 @@ public class ReplicaSnapshotRunner extends SnapshotRunnerBase {
 
             String namespace = deployItem.getMetadata().getNamespace();
             String clusterName = Utilities.ensureClusterName(config, deployItem.getMetadata().getClusterName());
-
+           
             SummaryObj summary = getSummaryMap().get(ALL);
             if (summary == null) {
                 summary = initRSSummaryObject(config, ALL);
@@ -128,6 +128,9 @@ public class ReplicaSnapshotRunner extends SnapshotRunnerBase {
             incrementField(summary, "ReplicaSets");
             incrementField(summaryNamespace, "ReplicaSets");
 
+           ObjectNode labelsObject = Utilities.getResourceLabels(config,mapper, deployItem);
+           deployObject.set("customLabels", labelsObject);
+            
             deployObject = checkAddObject(deployObject, deployItem.getMetadata().getUid(), "object_uid");
             deployObject = checkAddObject(deployObject, clusterName, "clusterName");
             deployObject = checkAddObject(deployObject, deployItem.getMetadata().getCreationTimestamp(), "creationTimestamp");

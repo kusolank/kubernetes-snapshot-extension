@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -20,6 +21,8 @@ import java.util.concurrent.CountDownLatch;
 import com.appdynamics.extensions.TasksExecutionServiceProvider;
 import com.appdynamics.extensions.metrics.Metric;
 import com.appdynamics.extensions.util.AssertUtils;
+import com.appdynamics.monitors.kubernetes.Constants;
+import com.appdynamics.monitors.kubernetes.Globals;
 import com.appdynamics.monitors.kubernetes.Utilities;
 import com.appdynamics.monitors.kubernetes.Metrics.UploadMetricsTask;
 import com.appdynamics.monitors.kubernetes.Models.AppDMetricObj;
@@ -200,7 +203,6 @@ public class PodCrashStatusSnapshotRunner extends SnapshotRunnerBase {
 		      if(OPENSHIFT_VERSION.isEmpty()) {
 					objectNode = checkAddObject(objectNode, OPENSHIFT_VERSION, "openshiftVersion");
 		      }
-	        objectNode = checkAddObject(objectNode, Utilities.getHall(pod), "hall");
 	        objectNode = checkAddObject(objectNode, getNodeName(pod), "nodeName");
 
             String clusterName = Utilities.ensureClusterName(config, pod.getMetadata().getClusterName());
@@ -216,12 +218,12 @@ public class PodCrashStatusSnapshotRunner extends SnapshotRunnerBase {
                 containerNode.put(entry.getKey(), entry.getValue());
             }
             objectNode.set("containerName", containerNode);
-//	        incrementField(getSummaryMap().get(ALL), "count");
-//	        incrementField(getSummaryMap().get(namespace), "count");
+
             objectNode = checkAddInt(objectNode,getCrashCount(pod) , "crashCount");
             objectNode = checkAddInt(objectNode,getRestartCount(pod) , "restartCount");
             
-          
+	        ObjectNode labelsObject = Utilities.getResourceLabels(config,mapper, pod);
+	        objectNode.set("customLabels", labelsObject);
             
             String nodeName = pod.getSpec().getNodeName();
             SummaryObj summary = getSummaryMap().get(ALL);
@@ -237,28 +239,21 @@ public class PodCrashStatusSnapshotRunner extends SnapshotRunnerBase {
                     getSummaryMap().put(namespace, summaryNamespace);
                 }
             }
+            boolean isMaster = false;
+            int masters = 0;
+            int workers = 0;
 
-            SummaryObj summaryNode = getSummaryMap().get(nodeName);
-            if (Utilities.shouldCollectMetricsForNode(getConfiguration(), nodeName)) {
-                if (summaryNode == null) {
-                    summaryNode = initPodCrashStatusSummaryObject(config, ALL, nodeName);
-                    getSummaryMap().put(nodeName, summaryNode);
-                }
-            }
             String phase = pod.getStatus().getPhase();
   
             if (phase.equals("Pending")) {
                 Utilities.incrementField(summary, "PendingPods");
                 Utilities.incrementField(summaryNamespace, "PendingPods");
-                Utilities.incrementField(summaryNode, "PendingPods");
             }else if (phase.equals("Running")) {
                 Utilities.incrementField(summary, "RunningPods");
                 Utilities.incrementField(summaryNamespace, "RunningPods");
-                Utilities.incrementField(summaryNode, "RunningPods");
             } else{
                 Utilities.incrementField(summary, "CrashedPods");
                 Utilities.incrementField(summaryNamespace, "CrashedPods");
-                Utilities.incrementField(summaryNode, "CrashedPods");
             }
 
             

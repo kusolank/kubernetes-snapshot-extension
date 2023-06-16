@@ -3,17 +3,20 @@ package com.appdynamics.monitors.kubernetes;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_APP_NAME;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_APP_TIER_NAME;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_CONTROLLER_URL;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_CUSTOM_TAGS;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_ENTITY_TYPE;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_EVENTS_API_KEY;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_EVENTS_URL;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_GLOBAL_ACCOUNT_NAME;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_NODE_NAMESPACES;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_NODE_NODES;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_DEF_EVENT;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_NAME_EVENT;
 import static com.appdynamics.monitors.kubernetes.Constants.DEFAULT_METRIC_PREFIX_NAME;
+import static com.appdynamics.monitors.kubernetes.Constants.METRIC_PATH_MICRO_SERVICES;
 import static com.appdynamics.monitors.kubernetes.Constants.METRIC_PATH_NAMESPACES;
 import static com.appdynamics.monitors.kubernetes.Constants.METRIC_PATH_NODES;
 import static com.appdynamics.monitors.kubernetes.Constants.METRIC_SEPARATOR;
-import static com.appdynamics.monitors.kubernetes.Constants.METRIC_PATH_MICRO_SERVICES;
 
 import java.io.File;
 import java.math.BigDecimal;
@@ -21,6 +24,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -38,11 +42,25 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
-import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.openshift.client.DefaultOpenShiftClient;
 import io.fabric8.openshift.client.OpenShiftClient;
+import io.kubernetes.client.common.KubernetesObject;
+import io.kubernetes.client.openapi.ApiClient;
+import io.kubernetes.client.openapi.Configuration;
+import io.kubernetes.client.openapi.apis.AppsV1Api;
+import io.kubernetes.client.openapi.apis.CoreV1Api;
+import io.kubernetes.client.openapi.models.CoreV1Event;
+import io.kubernetes.client.openapi.models.CoreV1EventList;
+import io.kubernetes.client.openapi.models.V1DaemonSet;
+import io.kubernetes.client.openapi.models.V1Deployment;
+import io.kubernetes.client.openapi.models.V1DeploymentList;
+import io.kubernetes.client.openapi.models.V1Endpoint;
+import io.kubernetes.client.openapi.models.V1EndpointsList;
+import io.kubernetes.client.openapi.models.V1Namespace;
 import io.kubernetes.client.openapi.models.V1Node;
 import io.kubernetes.client.openapi.models.V1Pod;
+import io.kubernetes.client.openapi.models.V1PodList;
+import io.kubernetes.client.openapi.models.V1ReplicaSet;
 import io.kubernetes.client.util.Config;
 
 public class Utilities {
@@ -469,7 +487,6 @@ public class Utilities {
         return theObj;
     }
 
- 
     public static io.kubernetes.client.openapi.ApiClient initClient(Map<String, String> config) throws Exception{
         io.kubernetes.client.openapi.ApiClient client;
         String apiMode = System.getenv("K8S_API_MODE");
@@ -527,42 +544,52 @@ public class Utilities {
              version = client.getOpenShiftV4Version();           
               logger.info("OpenShift Version is {}",version);    
          } catch (Exception e) {
-             logger.error("Exception when retrieving OpenShift version: " + e.getMessage(),e);
+             logger.error("Exception when retrieving OpenShift version: {}", e.getMessage());
          }
 		return version;
     }
-    
    
     
-    public static String  getHall(V1Pod pod) {
-	    String hall = "";
-
-	    // Retrieve the labels from the Pod's metadata
-	    Map<String, String> labels = pod.getMetadata().getLabels();
-
-	    // Check if the labels contain a specific key for hall information
-	    if (labels != null && labels.containsKey("hall")) {
-	        hall = labels.get("hall");
-	    }
-
-	    return hall;
-	}
-    
-    public static String  getHall(V1Node node) {
-	    String hall = "";
-
-	    // Retrieve the labels from the node's metadata
-	    Map<String, String> labels = node.getMetadata().getLabels();
-
-	    // Check if the labels contain a specific key for hall information
-	    if (labels != null && labels.containsKey("hall")) {
-	        hall = labels.get("hall");
-	    }
-
-	    return hall;
-	}
-
-
+    public static List<String>  getCustomTags(Map<String, String> config) {
 	
+    	String customTags = config.get(CONFIG_CUSTOM_TAGS);
+		String []customTagArray =customTags.split(",");
+		 
+		return  Arrays.asList(customTagArray);
+         	  
+    }
+
+    public static ObjectNode getResourceLabels(Map<String, String> config,ObjectMapper mapper, Object resource) {
+        ObjectNode labelsObject = mapper.createObjectNode();
+        Map<String, String> labels = new HashMap<>();
+        
+        if (resource instanceof V1Pod) {
+            labels = ((V1Pod) resource).getMetadata().getLabels();           
+        } else if (resource instanceof V1Namespace) {
+        	 labels = ((V1Namespace) resource).getMetadata().getLabels();
+        } else if (resource instanceof V1DaemonSet) {
+        	 labels = ((V1DaemonSet) resource).getMetadata().getLabels();
+        } else if (resource instanceof V1Deployment) {
+        	 labels = ((V1Deployment) resource).getMetadata().getLabels();
+        } else if (resource instanceof V1Node) {
+        	 labels = ((V1Node) resource).getMetadata().getLabels();
+        } else if (resource instanceof V1ReplicaSet) {
+        	 labels = ((V1ReplicaSet) resource).getMetadata().getLabels();
+        } else if (resource instanceof CoreV1Event) {
+        	 labels = ((CoreV1Event) resource).getMetadata().getLabels();
+        }
+        
+        if(labels!=null) {
+	        for (Map.Entry<String, String> entry : labels.entrySet()) {
+	            String key = entry.getKey();
+	            if(getCustomTags(config).contains(key)) {
+		            String value = entry.getValue();
+		            labelsObject.put(key, value);
+	            }
+	        }
+        }
+        
+        return labelsObject;
+    }
     
 }

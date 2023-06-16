@@ -135,6 +135,9 @@ public class NodeSnapshotRunner extends SnapshotRunnerBase {
                 getSummaryMap().put(ALL, summary);
             }
             
+            ObjectNode labelsObject = Utilities.getResourceLabels(config,mapper, nodeObj);
+            nodeObject.set("customLabels", labelsObject);
+            
             boolean isMaster = false;
             int masters = 0;
             int workers = 0;
@@ -160,17 +163,13 @@ public class NodeSnapshotRunner extends SnapshotRunnerBase {
                     Globals.NODE_ROLE_MAP.put(nodeName, isMaster ? Constants.MASTER_NODE : Constants.WORKER_NODE);
                 }
             }
-            try {
+       
             	nodeObject = checkAddObject(nodeObject,getNotRunningPodCount(nodeName, config),"notRunningPodCount");
-			} catch (Exception e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+			
             
             if(OPENSHIFT_VERSION.isEmpty()) {
             	nodeObject = checkAddObject(nodeObject,OPENSHIFT_VERSION,"openShiftVersion");
             }
-            nodeObject = checkAddObject(nodeObject,Utilities.getHall(nodeObj),"hall");
 //            nodeObject = checkAddObject(nodeObject, isMaster ? Constants.MASTER_NODE : Constants.WORKER_NODE + Constants.METRIC_SEPARATOR + nodeName, "nodeName");
             nodeObject = checkAddObject(nodeObject, clusterName, "clusterName");
             nodeObject = checkAddObject(nodeObject, nodeObj.getSpec().getPodCIDR(), "podCIDR");
@@ -325,8 +324,8 @@ public class NodeSnapshotRunner extends SnapshotRunnerBase {
 
         return arrayNode;
     }
- 	public int getNotRunningPodCount(String nodeName, Map<String, String> config) throws Exception  {
-		 int count = 0;
+ 	public int getNotRunningPodCount(String nodeName, Map<String, String> config)  {
+		int count = 0;
 		try {
 			ApiClient client = Utilities.initClient(config);
 	        this.setAPIServerTimeout(client, K8S_API_TIMEOUT);
@@ -341,14 +340,14 @@ public class NodeSnapshotRunner extends SnapshotRunnerBase {
 		            count++;
 		        }
 		    }
-		    return count;
 	    }
 	    catch (Exception ex){
-	        throw new Exception("Unable to connect to Kubernetes API server because it may be unavailable or the cluster credentials are invalid", ex);
+	      logger.info("Unable to connect to Kubernetes API server because it may be unavailable or the cluster credentials are invalid {}", ex);
 	    }
-	    
+		 return count;
 	}
-    protected SummaryObj initDefaultSummaryObject(Map<String, String> config){
+   
+ 	protected SummaryObj initDefaultSummaryObject(Map<String, String> config){
         return initNodeSummaryObject(config, ALL,null);
     }
 
@@ -415,15 +414,7 @@ public class NodeSnapshotRunner extends SnapshotRunnerBase {
                     String.format("select * from %s where notRunningPodCount > 0 and clusterName = \"%s\"", parentSchema, clusterName), rootPath, ALL, nodeName,null));
             
         }
-//        else {
-//            //node level
-//            String nodePath = String.format("%s|%s|", rootPath, METRIC_PATH_NODES, nodeName);
-//            metricsList.add(new AppDMetricObj("AllocationsCpu", parentSchema, CONFIG_SCHEMA_DEF_NODE, null, nodePath, ALL, nodeName,null));
-//            metricsList.add(new AppDMetricObj("AllocationsMemory", parentSchema, CONFIG_SCHEMA_DEF_NODE, null, nodePath, ALL, nodeName,null));
-//            metricsList.add(new AppDMetricObj("CapacityCpu", parentSchema, CONFIG_SCHEMA_DEF_NODE, null, nodePath, ALL, nodeName,null));
-//            metricsList.add(new AppDMetricObj("CapacityMemory", parentSchema, CONFIG_SCHEMA_DEF_NODE, null, nodePath, ALL, nodeName,null));
-//            metricsList.add(new AppDMetricObj("CapacityPods", parentSchema, CONFIG_SCHEMA_DEF_NODE, null, nodePath, ALL, nodeName,null));
-//        }
+
         return metricsList;
     }
 }

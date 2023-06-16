@@ -136,7 +136,8 @@ public class EndpointSnapshotRunner extends SnapshotRunnerBase {
             incrementField(summary, "Endpoints");
             incrementField(summaryNamespace, "Endpoints");
 
-
+            ObjectNode labelsObject = Utilities.getResourceLabels(config,mapper, ep);
+            objectNode.set("customLabels", labelsObject);
 
             objectNode = checkAddObject(objectNode, ep.getMetadata().getUid(), "object_uid");
             objectNode = checkAddObject(objectNode, clusterName, "clusterName");

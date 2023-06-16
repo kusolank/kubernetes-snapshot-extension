@@ -126,8 +126,8 @@ public class PodResourceQuotaSnapshotRunner  extends SnapshotRunnerBase {
 	private SummaryObj initPODResourceQuotaSummaryObject(Map<String, String> config, String namespace, String node, String msName) {
 	    ObjectMapper mapper = new ObjectMapper();
 	    ObjectNode summary = mapper.createObjectNode();
-	   // summary.put("namespace", namespace);
 	    summary.put("msServiceName", msName);
+	    summary.put("namespace", namespace);
 	    summary.put("PodCount", 0);
 	    summary.put("CpuRequest", 0);
 	    summary.put("CpuLimit", 0);
@@ -146,7 +146,7 @@ public class PodResourceQuotaSnapshotRunner  extends SnapshotRunnerBase {
 	private SummaryObj updatePODResourceQuotaSummaryObject(Map<String, String> config, String namespace, String node,MicroserviceData microserviceData) {
 	    ObjectMapper mapper = new ObjectMapper();
 	    ObjectNode summary = mapper.createObjectNode();
-	    //summary.put("namespace", namespace);
+	    summary.put("namespace", namespace);
 	    summary.put("msServiceName", microserviceData.getServiceName());
 	    summary.put("PodCount", microserviceData.getPodCount());
 	    summary.put("CpuRequest",microserviceData.getAverageCPURequest());
@@ -174,9 +174,6 @@ public class PodResourceQuotaSnapshotRunner  extends SnapshotRunnerBase {
 	    
         String namespacesCondition = "";
         String nodeCondition = "";
-//        if(namespace != null && !namespace.equals(ALL)){
-//            namespacesCondition = String.format("and namespace = \"%s\"", namespace);
-//        }
 
         if(msServiceName != null && !msServiceName.equals(ALL)){
             nodeCondition = String.format("and msServiceName = \"%s\"", msServiceName);
@@ -184,22 +181,6 @@ public class PodResourceQuotaSnapshotRunner  extends SnapshotRunnerBase {
 
         String filter = namespacesCondition.isEmpty() ? nodeCondition : namespacesCondition;
 	    ArrayList<AppDMetricObj> metricsList = new ArrayList<>();
-
-	    
-//	    metricsList.add(new AppDMetricObj("PodCount", parentSchema, CONFIG_SCHEMA_DEF_POD_RESOURCE_QUOTA,
-//	            String.format("select * from %s where namespace != \"\" and clusterName = \"%s\" GROUP BY msServiceName", parentSchema, clusterName,filter), rootPath, namespace, node));
-//
-//	    metricsList.add(new AppDMetricObj("CpuRequest", parentSchema, CONFIG_SCHEMA_DEF_POD_RESOURCE_QUOTA,
-//	            String.format("select *  from %s where namespace != \"\" and clusterName = \"%s\" GROUP BY msServiceName", parentSchema, clusterName,filter), rootPath, namespace, node));
-//
-//	    metricsList.add(new AppDMetricObj("CpuLimit", parentSchema, CONFIG_SCHEMA_DEF_POD_RESOURCE_QUOTA,
-//	            String.format("select *  from %s where namespace != \"\" and clusterName = \"%s\" GROUP BY msServiceName", parentSchema, clusterName,filter), rootPath,  namespace, node));
-//
-//	    metricsList.add(new AppDMetricObj("MemoryRequests", parentSchema, CONFIG_SCHEMA_DEF_POD_RESOURCE_QUOTA,
-//	            String.format("select * from %s where namespace != \"\" and clusterName = \"%s\" GROUP BY msServiceName", parentSchema, clusterName,filter), rootPath,  namespace, node));
-//
-//	    metricsList.add(new AppDMetricObj("MemoryRequests", parentSchema, CONFIG_SCHEMA_DEF_POD_RESOURCE_QUOTA,
-//	            String.format("select * from %s where namespace != \"\" and clusterName = \"%s\" GROUP BY msServiceName", parentSchema, clusterName,filter), rootPath, namespace, node));
 
 	
 	    metricsList.add(new AppDMetricObj("PodCount", parentSchema, CONFIG_SCHEMA_DEF_POD_RESOURCE_QUOTA,
@@ -240,6 +221,7 @@ public class PodResourceQuotaSnapshotRunner  extends SnapshotRunnerBase {
 		            microserviceData = new MicroserviceData(serviceName,namespace);
 		            microserviceDataMap.put(serviceName, microserviceData);
 		        }
+		        ObjectNode labelsObject = Utilities.getResourceLabels(config, mapper, pod);
 	
 		        microserviceData.incrementPodCount();
 		        microserviceData.addCPURequest(getCPURequest(pod));
@@ -248,6 +230,7 @@ public class PodResourceQuotaSnapshotRunner  extends SnapshotRunnerBase {
 		        microserviceData.addMemoryLimits(getMemoryLimits(pod));
 		        String clusterName = Utilities.ensureClusterName(config, pod.getMetadata().getClusterName());
 		        microserviceData.setClusterName(clusterName);
+		        microserviceData.labels=labelsObject;
 		    }
 	
 		    for (Map.Entry<String, MicroserviceData> entry : microserviceDataMap.entrySet()) {
@@ -257,12 +240,13 @@ public class PodResourceQuotaSnapshotRunner  extends SnapshotRunnerBase {
 		        String namespace=microserviceData.getNamespace();
 		        objectNode= checkAddInt(objectNode, microserviceData.getPodCount(), "msPodCount");
 		        objectNode=checkAddObject(objectNode, microserviceData.getServiceName(), "msServiceName");
-		        objectNode=checkAddFloat(objectNode, microserviceData.getAverageCPURequest(), "msCpuRequest");
-		        objectNode=checkAddFloat(objectNode, microserviceData.getAverageCPULimit(), "msCpuLimit");
-		        objectNode=checkAddFloat(objectNode, microserviceData.getAverageMemoryRequests(), "msMemoryRequests");
-		        objectNode=checkAddFloat(objectNode, microserviceData.getAverageMemoryLimits(), "msMemoryLimits");
+		        objectNode=checkAddFloat(objectNode, microserviceData.getAverageCPURequest(), "cpuRequest");
+		        objectNode=checkAddFloat(objectNode, microserviceData.getAverageCPULimit(), "cpuLimit");
+		        objectNode=checkAddFloat(objectNode, microserviceData.getAverageMemoryRequests(), "memoryRequests");
+		        objectNode=checkAddFloat(objectNode, microserviceData.getAverageMemoryLimits(), "memoryLimits");
 		        
-		        
+		      
+		        objectNode.set("customLabels", microserviceData.labels);
 		        
 		        SummaryObj summary = getSummaryMap().get(ALL);
 	            if (summary == null) {
@@ -315,64 +299,62 @@ public class PodResourceQuotaSnapshotRunner  extends SnapshotRunnerBase {
 	}
 	
 	 private static String  getDeploymentName(V1Pod pod)  {
-		 // Get the metadata of the pod
-			try {
-			        V1ObjectMeta metadata = pod.getMetadata();
+	 // Get the metadata of the pod
+		try {
+		        V1ObjectMeta metadata = pod.getMetadata();
+	
+	        // Get the owner references from the pod's metadata
+	        List<V1OwnerReference> ownerReferences = metadata.getOwnerReferences();
+	        
+	
+	
+	        AppsV1Api appsApi = new AppsV1Api();
+	        
+	        // Find the owner reference with the "ReplicaSet" kind
+	        V1OwnerReference replicaSetReference = null;
+	        if (ownerReferences !=null) {
+	            for (V1OwnerReference ref : ownerReferences) {
+	                if (ref.getKind().equals("ReplicaSet")) {
+	                    replicaSetReference = ref;
+	                    break;
+	                }
+	            }
+	
+	            if (replicaSetReference != null) {
+	                String replicaSetName = replicaSetReference.getName();
+	
+	                // Get the ReplicaSet object
+	                V1ReplicaSet replicaSet;
 			
-			        // Get the owner references from the pod's metadata
-			        List<V1OwnerReference> ownerReferences = metadata.getOwnerReferences();
-			        
-			
-			
-			        AppsV1Api appsApi = new AppsV1Api();
-			        
-			        // Find the owner reference with the "ReplicaSet" kind
-			        V1OwnerReference replicaSetReference = null;
-			        if (ownerReferences !=null) {
-			            for (V1OwnerReference ref : ownerReferences) {
-			                if (ref.getKind().equals("ReplicaSet")) {
-			                    replicaSetReference = ref;
-			                    break;
-			                }
-			            }
-			
-			            if (replicaSetReference != null) {
-			                String replicaSetName = replicaSetReference.getName();
-			
-			                // Get the ReplicaSet object
-			                V1ReplicaSet replicaSet;
-					
-								replicaSet = appsApi.readNamespacedReplicaSet(replicaSetName,pod.getMetadata().getNamespace(), null);
-							
-			
-			                // Get the owner references from the ReplicaSet's metadata
-			                List<V1OwnerReference> rsOwnerReferences = replicaSet.getMetadata().getOwnerReferences();
-			
-			                // Find the owner reference with the "Deployment" kind
-			                V1OwnerReference deploymentReference = null;
-			                if(rsOwnerReferences!=null) {
-				                for (V1OwnerReference ref : rsOwnerReferences) {
-				                    if (ref.getKind().equals("Deployment")) {
-				                        deploymentReference = ref;
-				                        break;
-				                    }
-				                }
-			                }
-			                else {
-			                	
-			                	logger.info("rsOwnerReferences is null for {} and {}",replicaSetName , replicaSet.getMetadata().getName() );
-			                }
-			
-			                if (deploymentReference != null) {
-			                    String deploymentName = deploymentReference.getName();
-			                   return deploymentName;
-			                }
-			            } 
-			        }
-			} catch (ApiException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
+	                replicaSet = appsApi.readNamespacedReplicaSet(replicaSetName,pod.getMetadata().getNamespace(), null);
+		
+	                // Get the owner references from the ReplicaSet's metadata
+	                List<V1OwnerReference> rsOwnerReferences = replicaSet.getMetadata().getOwnerReferences();
+	
+	                // Find the owner reference with the "Deployment" kind
+	                V1OwnerReference deploymentReference = null;
+	                if(rsOwnerReferences!=null) {
+		                for (V1OwnerReference ref : rsOwnerReferences) {
+		                    if (ref.getKind().equals("Deployment")) {
+		                        deploymentReference = ref;
+		                        break;
+		                    }
+		                }
+	                }
+	                else {
+	                	
+	                	logger.info("rsOwnerReferences is null for {} and {}",replicaSetName , replicaSet.getMetadata().getName() );
+	                }
+	
+	                if (deploymentReference != null) {
+	                    String deploymentName = deploymentReference.getName();
+	                   return deploymentName;
+	                }
+	            } 
+	        }
+		} catch (ApiException e) {
+			logger.info("Error on getting deployment name for pod {}",pod.getMetadata().getName() );
+		}
 		return "";
 	}
 
@@ -453,7 +435,8 @@ public class PodResourceQuotaSnapshotRunner  extends SnapshotRunnerBase {
 	    return memoryQuantity.getNumber().divide(BigDecimal.valueOf(1024 * 1024), 2, RoundingMode.HALF_UP).floatValue();
 	}
 	private static class MicroserviceData {
-	    private String serviceName;
+	    public ObjectNode labels;
+		private String serviceName;
 	    private String clusterName;
 	    private int podCount;
 	    private float cpuRequestTotal;

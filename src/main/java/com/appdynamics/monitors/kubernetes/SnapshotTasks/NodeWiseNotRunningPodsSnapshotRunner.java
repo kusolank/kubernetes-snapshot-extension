@@ -131,7 +131,6 @@ public class NodeWiseNotRunningPodsSnapshotRunner extends SnapshotRunnerBase {
 	   
 	    for (V1Node node : nodeList.getItems()) {
 	        ObjectNode objectNode = mapper.createObjectNode();
-	        objectNode = checkAddObject(objectNode, Utilities.getHall(node), "hall");
 	        if(!OPENSHIFT_VERSION.isEmpty()) {
 	        	objectNode = checkAddObject(objectNode,OPENSHIFT_VERSION, "openshiftVersion");
 	        }
@@ -144,7 +143,8 @@ public class NodeWiseNotRunningPodsSnapshotRunner extends SnapshotRunnerBase {
 	        objectNode = checkAddObject(objectNode, clusterName, "clusterName");
 	        arrayNode.add(objectNode);
 
-	        
+	        ObjectNode labelsObject = Utilities.getResourceLabels(config,mapper, node);
+	        objectNode.set("customLabels", labelsObject);
 	        
 	        boolean isMaster = false;
             if (node.getMetadata().getLabels() != null) {
@@ -165,7 +165,7 @@ public class NodeWiseNotRunningPodsSnapshotRunner extends SnapshotRunnerBase {
 	        String nodeName=node.getMetadata().getName();
 	        SummaryObj summaryNode = getSummaryMap().get(nodeName);
 	        
-	      //  objectNode = checkAddObject(objectNode,getNotRunningPodCount(nodeName, config),"notRunningPodCount");
+	       // objectNode = checkAddObject(objectNode,getNotRunningPodCount(nodeName, config),"notRunningPodCount");
             if(Utilities.shouldCollectMetricsForNode(getConfiguration(), nodeName)) {
                 if (summaryNode == null) {
                     summaryNode = updateNodeWiseNotRunningPodSummaryObject(config, nodeName, isMaster ? Constants.MASTER_NODE : Constants.WORKER_NODE,notRunningPodCount);

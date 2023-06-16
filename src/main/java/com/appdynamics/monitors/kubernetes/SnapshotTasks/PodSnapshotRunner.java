@@ -3,6 +3,7 @@ package com.appdynamics.monitors.kubernetes.SnapshotTasks;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_RECS_BATCH_SIZE;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_DEF_POD;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_NAME_POD;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_CUSTOM_TAGS;
 import static com.appdynamics.monitors.kubernetes.Constants.OPENSHIFT_VERSION;
 import static com.appdynamics.monitors.kubernetes.Utilities.ALL;
 import static com.appdynamics.monitors.kubernetes.Utilities.checkAddBoolean;
@@ -133,8 +134,7 @@ public class PodSnapshotRunner extends SnapshotRunnerBase {
         ArrayNode arrayNode = mapper.createArrayNode();
 
         long batchSize = Long.parseLong(config.get(CONFIG_RECS_BATCH_SIZE));
-        
-		
+                
         for(V1Pod podItem : podList.getItems()){
 
             ObjectNode podObject = mapper.createObjectNode();
@@ -151,6 +151,10 @@ public class PodSnapshotRunner extends SnapshotRunnerBase {
 
             String clusterName = Utilities.ensureClusterName(config, podItem.getMetadata().getClusterName());
 
+            ObjectNode labelsObject = Utilities.getResourceLabels(config,mapper, podItem);
+            podObject.set("customLabels", labelsObject);
+            
+            
             SummaryObj summary = getSummaryMap().get(ALL);
             if (summary == null) {
                 summary = initPodSummaryObject(config, ALL, ALL);
@@ -183,16 +187,7 @@ public class PodSnapshotRunner extends SnapshotRunnerBase {
             podObject = checkAddObject(podObject, podItem.getMetadata().getCreationTimestamp(), "creationTimestamp");
             podObject = checkAddObject(podObject, podItem.getMetadata().getDeletionTimestamp(), "deletionTimestamp");
 
-            if (podItem.getMetadata().getLabels() != null) {
-                String labels = "";
-                Iterator it = podItem.getMetadata().getLabels().entrySet().iterator();
-                while (it.hasNext()) {
-                    Map.Entry pair = (Map.Entry)it.next();
-                    labels += String.format("%s:%s;", pair.getKey(), pair.getValue());
-                    it.remove();
-                }
-                podObject = checkAddObject(podObject, labels, "labels");
-            }
+
 
             if (podItem.getMetadata().getAnnotations() != null){
                 String annotations = "";
@@ -451,7 +446,8 @@ public class PodSnapshotRunner extends SnapshotRunnerBase {
             }
 
             podObject = checkAddBoolean(podObject, limitsDefined, "limitsDefined");
-
+            
+            
 
             podObject =  checkAddFloat(podObject, cpuRequest, "cpuRequest");
             podObject =  checkAddFloat(podObject, memRequest, "memRequest");
@@ -531,6 +527,8 @@ public class PodSnapshotRunner extends SnapshotRunnerBase {
          }
         return  arrayNode;
     }
+
+
     
      private String getDeploymentName(V1Pod pod) throws ApiException {
 		 // Get the metadata of the pod

@@ -1,7 +1,9 @@
 package com.appdynamics.monitors.kubernetes.SnapshotTasks;
 
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_RECS_BATCH_SIZE;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_DEF_NODE;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_DEF_POD_STATUS_MONITOR;
+import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_NAME_NODE;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_NAME_POD_STATUS_MONITOR;
 import static com.appdynamics.monitors.kubernetes.Constants.OPENSHIFT_VERSION;
 import static com.appdynamics.monitors.kubernetes.Utilities.ALL;
@@ -12,6 +14,7 @@ import static com.appdynamics.monitors.kubernetes.Utilities.ensureSchema;
 import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -19,6 +22,8 @@ import java.util.concurrent.CountDownLatch;
 import com.appdynamics.extensions.TasksExecutionServiceProvider;
 import com.appdynamics.extensions.metrics.Metric;
 import com.appdynamics.extensions.util.AssertUtils;
+import com.appdynamics.monitors.kubernetes.Constants;
+import com.appdynamics.monitors.kubernetes.Globals;
 import com.appdynamics.monitors.kubernetes.Utilities;
 import com.appdynamics.monitors.kubernetes.Metrics.UploadMetricsTask;
 import com.appdynamics.monitors.kubernetes.Models.AppDMetricObj;
@@ -34,6 +39,7 @@ import io.kubernetes.client.openapi.apis.AppsV1Api;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.models.V1Container;
 import io.kubernetes.client.openapi.models.V1ContainerStatus;
+import io.kubernetes.client.openapi.models.V1Node;
 import io.kubernetes.client.openapi.models.V1NodeList;
 import io.kubernetes.client.openapi.models.V1ObjectMeta;
 import io.kubernetes.client.openapi.models.V1OwnerReference;
@@ -78,9 +84,10 @@ public class PodStatusMonitorSnapshotRunner extends SnapshotRunnerBase {
 	        URL publishUrl = ensureSchema(config, apiKey, accountName,CONFIG_SCHEMA_NAME_POD_STATUS_MONITOR, CONFIG_SCHEMA_DEF_POD_STATUS_MONITOR);
 
 	        try {
-	            V1NodeList nodes = getNodesFromKubernetes(config);
+	         
 
-	            createPayload(nodes, config, publishUrl, accountName, apiKey);
+	            List<V1Pod> pods = getPods(config);
+	            createPayload(pods, config, publishUrl, accountName, apiKey);
 	            List<Metric> metricList = getMetricsFromSummary(getSummaryMap(), config);
 
 	            logger.info("About to send {} POD Status Monitor metrics", metricList.size());
@@ -119,111 +126,119 @@ public class PodStatusMonitorSnapshotRunner extends SnapshotRunnerBase {
 	}
 
 
-	public ArrayNode createPayload(V1NodeList nodeList, Map<String, String> config, URL publishUrl, String accountName, String apiKey) throws Exception {
+	public ArrayNode createPayload(List<V1Pod> pods, Map<String, String> config, URL publishUrl, String accountName, String apiKey) throws Exception {
 	    ObjectMapper mapper = new ObjectMapper();
 	    ArrayNode arrayNode = mapper.createArrayNode();
 	    long batchSize = Long.parseLong(config.get(CONFIG_RECS_BATCH_SIZE));
 
-	    
-
-
-	        List<V1Pod> pods = getPodsFromNode(config);
+      
+    
+        for (V1Pod pod : pods) {
+        	ObjectNode objectNode = mapper.createObjectNode();
+  	      if(!OPENSHIFT_VERSION.isEmpty()) {
+              	objectNode = checkAddObject(objectNode,OPENSHIFT_VERSION, "openshiftVersion");
+              }
+           
+             
+           objectNode = checkAddObject(objectNode,pod.getSpec().getNodeName(), "nodeName");
+           
+           objectNode = checkAddObject(objectNode, pod.getMetadata().getNamespace(), "namespace");
+            
+            objectNode = checkAddObject(objectNode, getContainerName(pod), "containerName");
+            objectNode = checkAddObject(objectNode, getDeploymentName(pod), "deploymentName");
+            objectNode = checkAddObject(objectNode, pod.getMetadata().getName(), "podName");
+            objectNode = checkAddObject(objectNode, getErrorReason(pod), "errorReason");
+            objectNode = checkAddObject(objectNode, getContainerPhase(pod), "containerPhase");
+            String clusterName = Utilities.ensureClusterName(config, pod.getMetadata().getClusterName());
+	        objectNode = checkAddObject(objectNode, clusterName, "clusterName");
 	      
+	        SummaryObj summary = getSummaryMap().get(ALL);
+
+
+           ObjectNode labelsObject = Utilities.getResourceLabels(config,mapper, pod);
+           objectNode.set("customLabels", labelsObject);
+	            
+            if (summary == null) {
+                summary = initPodStatusMonitorSummaryObject(config, ALL, ALL);
+                getSummaryMap().put(ALL, summary);
+            }
+
+           
+            String namespace = pod.getMetadata().getNamespace();
+            String nodeName = pod.getSpec().getNodeName();
+            SummaryObj summaryNamespace = getSummaryMap().get(namespace);
+            if (Utilities.shouldCollectMetricsForNode(getConfiguration(), namespace)) {
+                if (summaryNamespace == null) {
+                    summaryNamespace = initPodStatusMonitorSummaryObject(config, namespace, ALL);
+                    getSummaryMap().put(namespace, summaryNamespace);
+                }
+            }
+            SummaryObj summaryNode = getSummaryMap().get(nodeName);
+            boolean isMaster = false;
+            int masters = 0;
+            int workers = 0;
+         // Retrieve the Node object
+          
+           V1Node nodeObj = getNode(config, nodeName);
+            // Extract the labels from the Node object
+            Map<String, String> labels = nodeObj.getMetadata().getLabels();
+            if (nodeObj.getMetadata().getLabels() != null) {
+                Iterator it = nodeObj.getMetadata().getLabels().entrySet().iterator();
+                while (it.hasNext()) {
+                    Map.Entry pair = (Map.Entry) it.next();
+                    if (!isMaster && pair.getKey().equals("node-role.kubernetes.io/master")) {
+                        isMaster = true;
+                    }
+                    it.remove();
+                }
+            }
+           
+            if(Utilities.shouldCollectMetricsForNode(getConfiguration(), nodeName)) {
+                if (summaryNode == null) {
+                    summaryNode = initPodStatusMonitorSummaryObjectNode(config, nodeName, isMaster ? Constants.MASTER_NODE : Constants.WORKER_NODE);
+                    getSummaryMap().put(nodeName, summaryNode);
+                    Globals.NODE_ROLE_MAP.put(nodeName, isMaster ? Constants.MASTER_NODE : Constants.WORKER_NODE);
+                }
+            }
+            
+            int notRunningCount=0;
+            if (!"Running".equalsIgnoreCase(pod.getStatus().getPhase())) {
+            	objectNode = checkAddInt(objectNode, notRunningCount, "NotRunningPodCount");
+	        	notRunningCount++;
+	        	Utilities.incrementField(summary, "NotRunningPodCount");
+	            Utilities.incrementField(summaryNamespace, "NotRunningPodCount");
+	            Utilities.incrementField(summaryNode, "NotRunningPodCount");
+		    }
+           
+            
+            
+            int podRestarts = 0;
+
         
-	        for (V1Pod pod : pods) {
-	        	ObjectNode objectNode = mapper.createObjectNode();
-	  	      if(!OPENSHIFT_VERSION.isEmpty()) {
-	              	objectNode = checkAddObject(objectNode,OPENSHIFT_VERSION, "openshiftVersion");
-	              }
-	           
-	             
-        	   objectNode = checkAddObject(objectNode, Utilities.getHall(pod), "hall");
-               objectNode = checkAddObject(objectNode,pod.getSpec().getNodeName(), "nodeName");
-               
-               objectNode = checkAddObject(objectNode, pod.getMetadata().getNamespace(), "namespace");
-	            
-	            objectNode = checkAddObject(objectNode, getContainerName(pod), "containerName");
-	            objectNode = checkAddObject(objectNode, getDeploymentName(pod), "deploymentName");
-	            objectNode = checkAddObject(objectNode, pod.getMetadata().getName(), "podName");
-	            objectNode = checkAddObject(objectNode, getErrorReason(pod), "errorReason");
-	            objectNode = checkAddObject(objectNode, getContainerPhase(pod), "containerPhase");
-	            String clusterName = Utilities.ensureClusterName(config, pod.getMetadata().getClusterName());
-		        objectNode = checkAddObject(objectNode, clusterName, "clusterName");
-		      
-		        SummaryObj summary = getSummaryMap().get(ALL);
+            if (pod.getStatus().getContainerStatuses() != null){
+                for(V1ContainerStatus status : pod.getStatus().getContainerStatuses()){
+                    int restarts = status.getRestartCount();
+                    podRestarts += restarts;
+                }
+            }
+            
+            objectNode = checkAddInt(objectNode, podRestarts, "RestartCount");
+            Utilities.incrementField(summary, "RestartCount", podRestarts);
+            Utilities.incrementField(summaryNamespace, "RestartCount", podRestarts);
+            Utilities.incrementField(summaryNode, "RestartCount", podRestarts);
+            arrayNode.add(objectNode);
 
-
-	  
-	            if (summary == null) {
-	                summary = initPodStatusMonitorSummaryObject(config, ALL, ALL);
-	                getSummaryMap().put(ALL, summary);
-	            }
-
-	           
-	            String namespace = pod.getMetadata().getNamespace();
-	            String nodeName = pod.getSpec().getNodeName();
-	            SummaryObj summaryNamespace = getSummaryMap().get(namespace);
-	            if (Utilities.shouldCollectMetricsForNode(getConfiguration(), namespace)) {
-	                if (summaryNamespace == null) {
-	                    summaryNamespace = initPodStatusMonitorSummaryObject(config, namespace, ALL);
-	                    getSummaryMap().put(namespace, summaryNamespace);
-	                }
-	            }
-
-	            SummaryObj summaryNode = getSummaryMap().get(nodeName);
-	            if (Utilities.shouldCollectMetricsForNode(getConfiguration(), nodeName)) {
-	                if (summaryNode == null) {
-	                    summaryNode = initPodStatusMonitorSummaryObject(config, ALL, nodeName);
-	                    getSummaryMap().put(nodeName, summaryNode);
-	                }
-	            }
-	            
-	            int notRunningCount=0;
-	            if (!"Running".equalsIgnoreCase(pod.getStatus().getPhase())) {
-	            	objectNode = checkAddInt(objectNode, notRunningCount, "NotRunningPodCount");
-		        	notRunningCount++;
-		        	Utilities.incrementField(summary, "NotRunningPodCount");
-		            Utilities.incrementField(summaryNamespace, "NotRunningPodCount");
-		            Utilities.incrementField(summaryNode, "NotRunningPodCount");
-			    }
-	           
-	            
-	            
-	            int podRestarts = 0;
-
-	        
-	            if (pod.getStatus().getContainerStatuses() != null){
-	                for(V1ContainerStatus status : pod.getStatus().getContainerStatuses()){
-
-	                
-
-	                    int restarts = status.getRestartCount();
-	                    podRestarts += restarts;
-	                    
-	                }
-	                //container data
-
-
-	                
-	            }
-	            
-	            objectNode = checkAddInt(objectNode, podRestarts, "RestartCount");
-                Utilities.incrementField(summary, "RestartCount", podRestarts);
-                Utilities.incrementField(summaryNamespace, "RestartCount", podRestarts);
-                Utilities.incrementField(summaryNode, "RestartCount", podRestarts);
-	            arrayNode.add(objectNode);
-
-	            if (arrayNode.size() >= batchSize) {
-	                logger.info("Sending batch of {} POD Status Monitor records", arrayNode.size());
-	                String payload = arrayNode.toString();
-	                arrayNode = arrayNode.removeAll();
-	                if (!payload.equals("[]")) {
-	                    UploadEventsTask uploadEventsTask = new UploadEventsTask(getTaskName(), config, publishUrl, accountName, apiKey, payload);
-	                    getConfiguration().getExecutorService().execute("UploadPodStatusMonitorData", uploadEventsTask);
-	                }
-	            }
-	        }
-	        
+            if (arrayNode.size() >= batchSize) {
+                logger.info("Sending batch of {} POD Status Monitor records", arrayNode.size());
+                String payload = arrayNode.toString();
+                arrayNode = arrayNode.removeAll();
+                if (!payload.equals("[]")) {
+                    UploadEventsTask uploadEventsTask = new UploadEventsTask(getTaskName(), config, publishUrl, accountName, apiKey, payload);
+                    getConfiguration().getExecutorService().execute("UploadPodStatusMonitorData", uploadEventsTask);
+                }
+            }
+        }
+        
 	      
 	   
 
@@ -239,6 +254,10 @@ public class PodStatusMonitorSnapshotRunner extends SnapshotRunnerBase {
 
 	    return arrayNode;
 	}
+
+	
+
+
 
 	private String getContainerName(V1Pod pod) {
 		String containerNames="";
@@ -334,7 +353,7 @@ public class PodStatusMonitorSnapshotRunner extends SnapshotRunnerBase {
 
 
 	
-	private List<V1Pod> getPodsFromNode(Map<String, String> config) throws Exception {
+	private List<V1Pod> getPods(Map<String, String> config) throws Exception {
 		V1PodList podList;
 		ApiClient client = Utilities.initClient(config);
          this.setAPIServerTimeout(client, K8S_API_TIMEOUT);
@@ -356,6 +375,20 @@ public class PodStatusMonitorSnapshotRunner extends SnapshotRunnerBase {
 	}
 
 
+	private V1Node getNode(Map<String, String> config,String nodeName) throws Exception {
+		V1PodList podList;
+		ApiClient client = Utilities.initClient(config);
+         this.setAPIServerTimeout(client, K8S_API_TIMEOUT);
+         Configuration.setDefaultApiClient(client);
+         CoreV1Api api = new CoreV1Api();
+
+         V1Node node = api.readNode(nodeName, null);
+         
+	    return node;
+	}
+
+	
+	
 	
 
 
@@ -403,6 +436,20 @@ public class PodStatusMonitorSnapshotRunner extends SnapshotRunnerBase {
 	    return new SummaryObj(summary, metricsList, path);
 	}
 	
+	private SummaryObj initPodStatusMonitorSummaryObjectNode(Map<String, String> config, String node,
+			String role) {
+       
+        ObjectMapper mapper = new ObjectMapper();
+	    ObjectNode summary = mapper.createObjectNode();
+        summary.put("namespace", ALL);
+        summary.put("nodename", node);
+	    summary.put("NotRunningPodCount",0);
+
+	    summary.put("RestartCount", 0);
+	    ArrayList<AppDMetricObj> metricsList = initMetrics(config, node);
+        String path = Utilities.getMetricsPath(config, ALL, node,role);
+		return new SummaryObj(summary, metricsList, path);
+	}
 	public static SummaryObj updatePodStatusMonitorSummaryObject(Map<String, String> config, String namespace,String node) {
 	    ObjectMapper mapper = new ObjectMapper();
 	    ObjectNode summary = mapper.createObjectNode();
@@ -419,7 +466,37 @@ public class PodStatusMonitorSnapshotRunner extends SnapshotRunnerBase {
 	    return new SummaryObj(summary, metricsList, path);
 	}
 
+	 public static ArrayList<AppDMetricObj> initMetrics(Map<String, String> config, String node){
 
+
+	        
+	        if (Utilities.ClusterName == null || Utilities.ClusterName.isEmpty()) {
+		        return new ArrayList<AppDMetricObj>();
+		    }
+
+		    String clusterName = Utilities.ClusterName;
+		    String parentSchema = config.get(CONFIG_SCHEMA_NAME_POD_STATUS_MONITOR);
+		    String rootPath = String.format("Application Infrastructure Performance|%s|Custom Metrics|Cluster Stats", Utilities.getClusterTierName(config));
+		    ArrayList<AppDMetricObj> metricsList = new ArrayList<>();
+
+		    String namespacesCondition = "";
+	        String nodeCondition = "";
+		  
+	        if(node != null && !node.equals(ALL)){
+	            nodeCondition = String.format("and nodeName = \"%s\"", node);
+	        }
+
+	        String filter = namespacesCondition.isEmpty() ? nodeCondition : namespacesCondition;
+	   	    metricsList.add(new AppDMetricObj("NotRunningPodCount", parentSchema,CONFIG_SCHEMA_DEF_POD_STATUS_MONITOR,
+	                String.format("select * from %s where clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, ALL, node,null));
+
+	   	    metricsList.add(new AppDMetricObj("RestartCount", parentSchema,CONFIG_SCHEMA_DEF_POD_STATUS_MONITOR,
+	                String.format("select * from %s where clusterName = \"%s\" %s ORDER BY creationTimestamp DESC", parentSchema, clusterName, filter), rootPath, ALL, node,null));
+
+		    
+		    return metricsList;
+	
+	    }
 	public static ArrayList<AppDMetricObj> initMetrics(Map<String, String> config, String namespace,String node) {
 	    if (Utilities.ClusterName == null || Utilities.ClusterName.isEmpty()) {
 	        return new ArrayList<AppDMetricObj>();

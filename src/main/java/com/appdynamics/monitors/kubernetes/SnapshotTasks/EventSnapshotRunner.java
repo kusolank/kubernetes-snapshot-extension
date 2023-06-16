@@ -8,6 +8,9 @@ import static com.appdynamics.monitors.kubernetes.Utilities.checkAddObject;
 
 import java.io.IOException;
 import java.net.URL;
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -236,9 +239,18 @@ public class EventSnapshotRunner extends SnapshotRunnerBase {
                     }
                     Globals.lastElementSelfLink = item.getMetadata().getSelfLink();
                 }
-
-                if(null == Globals.lastElementTimestamp || item.getLastTimestamp().isAfter(Globals.lastElementTimestamp)){
-                    Globals.lastElementTimestamp = item.getLastTimestamp();
+                
+                if (item.getLastTimestamp() != null) {
+                    if (Globals.lastElementTimestamp == null || item.getLastTimestamp().isAfter(Globals.lastElementTimestamp)) {
+                        Globals.lastElementTimestamp = item.getLastTimestamp();
+                    }
+                } else {
+                   
+                    logger.error("Last timestamp is null and addding current timestamp for item: {}", item);
+                   
+                    LocalDateTime localDateTime = LocalDateTime.now();
+                    OffsetDateTime offsetDateTime = localDateTime.atOffset(ZoneOffset.systemDefault().getRules().getOffset(localDateTime));
+                    Globals.lastElementTimestamp=offsetDateTime;
                 }
             }
         }
