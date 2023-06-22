@@ -156,8 +156,8 @@ public class PodStatusMonitorSnapshotRunner extends SnapshotRunnerBase {
 
 
            ObjectNode labelsObject = Utilities.getResourceLabels(config,mapper, pod);
-           objectNode.set("customLabels", labelsObject);
-	            
+          
+           objectNode=checkAddObject(objectNode, labelsObject, "customLabels") ;  
             if (summary == null) {
                 summary = initPodStatusMonitorSummaryObject(config, ALL, ALL);
                 getSummaryMap().put(ALL, summary);
@@ -267,7 +267,7 @@ public class PodStatusMonitorSnapshotRunner extends SnapshotRunnerBase {
 			flag=true;
 		}
 	    if(flag)
-		containerNames.substring(0,containerNames.length()-1);
+	    	containerNames= containerNames.substring(0,containerNames.length()-2);
 	    return containerNames;
 	}
 

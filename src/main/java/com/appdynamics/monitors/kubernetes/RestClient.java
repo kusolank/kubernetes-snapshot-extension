@@ -30,8 +30,16 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
+import okhttp3.ResponseBody;
+
 public class RestClient {
-    private static final Logger logger = LoggerFactory.getLogger(RestClient.class);
+    private static final String APPD_EVENT_CONTENT_TYPE = "application/vnd.appd.events+json;v=2";
+	private static final Logger logger = LoggerFactory.getLogger(RestClient.class);
 
 
     public static String getRESTCredentials(Map<String, String> config){
@@ -70,10 +78,79 @@ public class RestClient {
         return conn;
     }
 
+		public static JsonNode doGet(URL url, Map<String, String> config, String accountName, String apiKey, String requestBody, String method)
+		{
+			OkHttpClient client = new OkHttpClient().newBuilder()
+					  .build();
+					MediaType mediaType = MediaType.parse(APPD_EVENT_CONTENT_TYPE);
+					RequestBody body = RequestBody.create(mediaType, requestBody);
+					Request request = new Request.Builder()
+					  .url(url)
+					  .addHeader("X-Events-API-AccountName", accountName)
+					  .addHeader("X-Events-API-Key", apiKey)
+					  .addHeader("Accept", APPD_EVENT_CONTENT_TYPE)
+					  .build();
+					try {
+						Response response = client.newCall(request).execute();
+						ResponseBody responseBody = response.body();
+						String responseBodyString = responseBody.string();
+						logger.info("doGet response for URL: {}, message: {} and content is: {} and responseCode is: {}", url, response.message(), responseBodyString, response.code());
+		
+						ObjectMapper objectMapper = new ObjectMapper();
+						JsonNode jsonNode = objectMapper.readTree(responseBodyString);
+	    				responseBody.close(); // Close the response body stream
+
+						return jsonNode;
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					return null;
+		}
+    public static JsonNode doPost(URL url, Map<String, String> config, String accountName, String apiKey, String requestBody, String method){
+    	
+    	OkHttpClient client = new OkHttpClient().newBuilder()
+    			  .build();
+    			MediaType mediaType = MediaType.parse(APPD_EVENT_CONTENT_TYPE);
+    			RequestBody body = RequestBody.create(mediaType, requestBody);
+    			Request request = new Request.Builder()
+    			  .url(url)
+    			  .method("POST", body)
+    			  .addHeader("Content-Type", APPD_EVENT_CONTENT_TYPE)
+    			  .addHeader("X-Events-API-AccountName", accountName)
+    			  .addHeader("X-Events-API-Key", apiKey)
+    			  .addHeader("Accept", APPD_EVENT_CONTENT_TYPE)
+    			  .build();
+    			try {
+    				Response response = client.newCall(request).execute();
+    				ResponseBody responseBody = response.body();
+    				String responseBodyString = responseBody.string();
+
+    				logger.info("doPost response for URL: {}, message: {} and content is: {} and responseCode is: {}", url, response.message(), responseBodyString, response.code());
+
+    				ObjectMapper objectMapper = new ObjectMapper();
+    				JsonNode jsonNode = objectMapper.readTree(responseBodyString);
+
+    				responseBody.close(); // Close the response body stream
+
+    				return jsonNode;
+    			} catch (IOException e) {
+					// TODO Auto-generated catch block
+    				e.printStackTrace();
+					logger.error("doPost  doPost Error while processing {} on URL {}. Reason {}", method, url, e.getMessage()+" :: "+e.getLocalizedMessage() );
+		            
+				}
+				return null;
+    }
+    
     public static JsonNode doRequest(URL url, Map<String, String> config, String accountName, String apiKey, String requestBody, String method) {
         BufferedReader br = null;
         try {
             HttpURLConnection conn = openConnection(url, config);
+            if (method=="POST") {
+            	return	doPost(url, config, accountName, apiKey, requestBody, method);
+           	 
+			}
             conn.setDoOutput(true);
             if (method.equals("PATCH")) {
                 conn.setRequestProperty("X-HTTP-Method-Override", "PATCH");
@@ -82,9 +159,9 @@ public class RestClient {
                 conn.setRequestMethod(method);
             }
             if (method.equals("POST") || method.equals("PATCH")) {
-                conn.setRequestProperty("Content-Type", "application/vnd.appd.events+json;v=2");
+                conn.setRequestProperty("Content-Type", APPD_EVENT_CONTENT_TYPE);
             }
-            conn.setRequestProperty("Accept", "application/vnd.appd.events+json;v=2");
+            conn.setRequestProperty("Accept", APPD_EVENT_CONTENT_TYPE);
             conn.setRequestProperty("X-Events-API-AccountName", accountName);
             conn.setRequestProperty("X-Events-API-Key", apiKey);
             if (method.equals("POST") || method.equals("PATCH")) {
@@ -99,6 +176,7 @@ public class RestClient {
             ObjectMapper objectMapper = new ObjectMapper();
             return objectMapper.readTree(response);
         } catch (IOException e) {
+	    e.printStackTrace();
             logger.error("Error while processing {} on URL {}. Reason {}", method, url, e.toString());
             return null;
         }

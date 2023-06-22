@@ -123,6 +123,11 @@ Either [Download the Extension from the latest Github release](https://github.co
   - type: "replica"
   - type: "event"
   - type: "endpoint"
+  - type: "podResourceQuota"
+  - type: "podStatusMonitor"
+  - type: "podCrashStatus"
+  - type: "namespaceQuotaUtilization"
+  - type: "notRunningPodsPerNode"
 
   # Proxy host. Env Var: APPD_PROXY_HOST
   proxyHost: ""
@@ -179,6 +184,8 @@ Either [Download the Extension from the latest Github release](https://github.co
   # Name of the Events  schema
    eventsSchemaName: "k8s_events"
 
+  # Custom tags/labels from metadata which need to be captured
+   customTags: "tag1,tag2" #Add comma seperated tags/lables which needs to captured these will captured from resource metadata
 
   ```
 
@@ -323,7 +330,7 @@ oc create secret generic appd-secret --from-literal=ACCOUNT_ACCESS_KEY=<controll
 
 ## Contributing
 
-Always feel free to fork and contribute any changes directly via [GitHub](https://github.com/sashaPM/kubernetes-snapshot-extension).
+Always feel free to fork and contribute any changes directly via [GitHub](https://github.com/Appdynamics/kubernetes-snapshot-extension-1).
 
 ## Troubleshooting
 

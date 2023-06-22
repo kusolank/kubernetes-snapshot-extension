@@ -129,7 +129,7 @@ public class ReplicaSnapshotRunner extends SnapshotRunnerBase {
             incrementField(summaryNamespace, "ReplicaSets");
 
            ObjectNode labelsObject = Utilities.getResourceLabels(config,mapper, deployItem);
-           deployObject.set("customLabels", labelsObject);
+           deployObject=checkAddObject(deployObject, labelsObject, "customLabels") ;  
             
             deployObject = checkAddObject(deployObject, deployItem.getMetadata().getUid(), "object_uid");
             deployObject = checkAddObject(deployObject, clusterName, "clusterName");

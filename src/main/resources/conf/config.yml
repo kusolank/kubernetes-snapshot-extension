@@ -103,74 +103,65 @@ dashboardCheckInterval: "600"
 # Events Service Endpoint. These Default settings are for SaaS Users. Change if you are on Premise
 eventsUrl: "https://analytics.api.appdynamics.com"  # EVENTS_API_URL env var
 
-
-podsSchemaDefinition: '{
-   "schema" : {
-      "object_uid": "string",
-      "openShiftVersion": "string",
-      "customLabels": {
-        "type": "object",
-        "properties": {
-        }
-      },
-      "clusterName": "string",
-      "deploymentName": "string",
-      "creationTimestamp": "date",
-      "deletionTimestamp": "date",
-      "labels": "string",
-      "annotations": "string",
-      "name": "string",
-      "namespace": "string",
-      "containerCount": "integer",
-      "initContainerCount": "integer",
-      "nodeName": "string",
-      "priority": "integer",
-      "restartPolicy": "string",
-      "serviceAccountName": "string",
-      "terminationGracePeriodSeconds": "integer",
-      "tolerations": "string",
-      "nodeAffinityPreferred": "string",
-      "nodeAffinityRequired": "string",
-      "hasPodAffinity": "boolean",
-      "hasPodAntiAffinity": "boolean",
-      "hostIP": "string",
-      "phase": "string",
-      "podIP": "string",
-      "reason": "string",
-      "startTime": "date",
-      "lastTransitionTimeCondition": "date",
-      "reasonCondition": "string",
-      "statusCondition": "string",
-      "typeCondition": "string",
-      "limitsDefined": "boolean",
-      "liveProbes": "integer",
-      "readyProbes": "integer",
-      "podRestarts": "integer",
-      "numPrivileged": "integer",
-      "ports": "string",
-      "memRequest": "float",
-      "cpuRequest": "float",
-      "cpuLimit": "float",
-      "memLimit": "float",
-      "containerStates": "string",
-      "images": "string",
-      "waitReasons": "string",
-      "termReasons": "string",
-      "runningStartTime": "date",
-      "terminationTime": "date",
-      "mounts": "string"
-   }
- }'
+ podsSchemaDefinition: '{
+       "schema" : {
+          "object_uid": "string",
+          "openShiftVersion": "string",
+          "customLabels": "string",
+          "clusterName": "string",
+          "deploymentName": "string",
+          "creationTimestamp": "date",
+          "deletionTimestamp": "date",
+          "labels": "string",
+          "annotations": "string",
+          "name": "string",
+          "namespace": "string",
+          "containerCount": "integer",
+          "initContainerCount": "integer",
+          "nodeName": "string",
+          "priority": "integer",
+          "restartPolicy": "string",
+          "serviceAccountName": "string",
+          "terminationGracePeriodSeconds": "integer",
+          "tolerations": "string",
+          "nodeAffinityPreferred": "string",
+          "nodeAffinityRequired": "string",
+          "hasPodAffinity": "boolean",
+          "hasPodAntiAffinity": "boolean",
+          "hostIP": "string",
+          "phase": "string",
+          "podIP": "string",
+          "reason": "string",
+          "startTime": "date",
+          "lastTransitionTimeCondition": "date",
+          "reasonCondition": "string",
+          "statusCondition": "string",
+          "typeCondition": "string",
+          "limitsDefined": "boolean",
+          "liveProbes": "integer",
+          "readyProbes": "integer",
+          "podRestarts": "integer",
+          "numPrivileged": "integer",
+          "ports": "string",
+          "memRequest": "float",
+          "cpuRequest": "float",
+          "cpuLimit": "float",
+          "memLimit": "float",
+          "containerStates": "string",
+          "images": "string",
+          "waitReasons": "string",
+          "termReasons": "string",
+          "runningStartTime": "date",
+          "terminationTime": "date",
+          "mounts": "string"
+       }
+    }'
 
 nodeSchemaDefinition: '{
   "schema" : {
       "nodeName": "string",
       "openShiftVersion": "string",
-      "customLabels": {
-        "type": "object",
-        "properties": {}
-        }
-      },
+      "customLabels": "string",
       "clusterName": "string",
       "podCIDR": "string",
       "taints": "string",
@@ -195,7 +186,8 @@ nodeSchemaDefinition: '{
       "ready": "string",
       "outOfDisk": "string",
       "memoryPressure": "string",
-      "diskPressure": "string"
+      "diskPressure": "string",
+      "notRunningPodCount":"integer"
   }
  }'
 
@@ -203,12 +195,7 @@ eventsSchemaDefinition: '{
    "schema" : {
       "firstTimestamp": "date",
       "openShiftVersion": "string",
-      "customLabels": {
-        "type": "object",
-        "properties": {}
-        }
-      },
-      "openShiftVersion": "string",
+      "customLabels": "string",
       "object_kind": "string",
       "object_name": "string",
       "object_namespace": "string",
@@ -244,10 +231,7 @@ deploySchemaDefinition: '{
     "clusterName": "string",
     "name": "string",
     "openShiftVersion": "string",
-    "customLabels": {
-      "type": "object",
-      "properties": {}
-    },
+    "customLabels": "string",
     "namespace": "string",
     "object_uid": "string",
     "creationTimestamp": "date",
@@ -274,11 +258,7 @@ daemonSchemaDefinition: '{
     "clusterName": "string",
     "openShiftVersion": "string",
     "name": "string",
-    "customLabels": {
-      "type": "object",
-      "properties": {
-      }
-    },
+    "customLabels": "string",
     "namespace": "string",
     "object_uid": "string",
     "creationTimestamp": "date",
@@ -303,11 +283,7 @@ rsSchemaDefinition: '{
     "openShiftVersion": "string",
     "name": "string",
     "namespace": "string",
-    "customLabels": {
-      "type": "object",
-      "properties": {
-      }
-    },
+    "customLabels": "string",
     "object_uid": "string",
     "creationTimestamp": "date",
     "deletionTimestamp": "date",
@@ -334,16 +310,12 @@ endpointSchemaDefinition: '{
     "downContext": "string"
   }
  }'
-
+    
 podResourceQuotaSchemaDefinition: '{
   "schema": {
     "clusterName": "string",
     "openShiftVersion": "string",
-    "customLabels": {
-      "type": "object",
-      "properties": {
-      }
-    },
+    "customLabels": "string",
     "msServiceName": "string",
     "podCount": "integer",
     "cpuRequest": "float",
@@ -352,36 +324,29 @@ podResourceQuotaSchemaDefinition: '{
     "memoryLimits": "float"
   }
  }'
-
+    
 namespaceQuotaUtilizationSchemaDefinition: '{
    "schema": {
-    "clusterName": "string",
-    "customLabels": {
-      "type": "object",
-      "properties": {
-      }
-    },
-    "openshiftPlatform": "string",
-    "cpuRequestUsed": "float",
-    "cpuRequestTotal": "float",
-    "cpuLimitsUsed": "float",
-    "cpuLimitsTotal": "float",
-    "memoryRequestUsed": "float",
-    "memoryRequestTotal": "float",
-    "memoryLimitsUsed": "float",
-    "memoryLimitsTotal": "float"
+     "namespace": "string",
+     "clusterName": "string",
+     "customLabels": "string",
+     "openshiftPlatform": "string",
+     "cpuRequestUsed": "float",
+     "cpuRequestTotal": "float",
+     "cpuLimitsUsed": "float",
+     "cpuLimitsTotal": "float",
+     "memoryRequestUsed": "float",
+     "memoryRequestTotal": "float",
+     "memoryLimitsUsed": "float",
+     "memoryLimitsTotal": "float"
   }
  }'
-
+    
 podStatusMonitorSchemaDefinition: '{
    "schema": {
      "clusterName": "string",
      "openshiftVersion": "string",
-     "customLabels": {
-       "type": "object",
-       "properties": {
-      }
-     },
+     "customLabels": "string",
      "nodeName": "string",
      "namespace": "string",
      "containerName": "string",
@@ -393,39 +358,28 @@ podStatusMonitorSchemaDefinition: '{
      "restartCount": "integer"
   }
  }'
-
+    
 notRunningPodCountPerNodeSchemaDefinition: '{
    "schema": {
       "clusterName": "string",
-      "customLabels": {
-         "type": "object",
-         "properties": {
-          }
-  	  },
+      "customLabels": "string",
       "openshiftVersion": "string",
       "nodeName": "string",
       "containerStatus": "string",
       "notRunningPodCount": "integer",
       "labels": "string"
     }
-  }'
- 
+ }'
+     
 podsCrashStatusSchemaDefinition: '{
   "schema": {
-    "clusterName": "string",
-    "openshiftVersion": "string",
-    "customLabels": {
-      "type": "object",
-      "properties": {
-      }
-  	},
-    "nodeName": "string",
-    "namespace": "string",
-    "deploymentName": "string",
-    "containers": {
-        "type": "object",
-        "additionalProperties": {
-      },
+     "clusterName": "string",
+     "openshiftVersion": "string",
+     "customLabels": "string",
+     "nodeName": "string",
+     "namespace": "string",
+     "deploymentName": "string",
+     "containers": "string",
      "podName": "string",
      "errorReason": "string",
      "containerPhase": "string",

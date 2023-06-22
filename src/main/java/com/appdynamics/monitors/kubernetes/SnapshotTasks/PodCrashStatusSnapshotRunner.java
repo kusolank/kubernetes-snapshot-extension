@@ -34,6 +34,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.Configuration;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
+import io.kubernetes.client.openapi.models.V1Container;
 import io.kubernetes.client.openapi.models.V1ContainerStateTerminated;
 import io.kubernetes.client.openapi.models.V1ContainerStatus;
 import io.kubernetes.client.openapi.models.V1Pod;
@@ -125,7 +126,17 @@ public class PodCrashStatusSnapshotRunner extends SnapshotRunnerBase {
 	        List<V1ContainerStatus> containerStatuses = pod.getStatus().getContainerStatuses();
 	        for (V1ContainerStatus containerStatus : containerStatuses) {
 	            String containerName = containerStatus.getName();
-	            String containerStatusString = containerStatus.getState().toString();
+	            String containerStatusString ="";
+	            if(containerStatus.getState().getRunning()!=null)
+	            {
+	            	containerStatusString="Running";
+	            }else  if(containerStatus.getState().getTerminated()!=null)
+	            {
+	            	containerStatusString="Terminated";
+	            }else  if(containerStatus.getState().getWaiting()!=null)
+	            {
+	            	containerStatusString="Waiting";
+	            }
 	            containerNameAndStatus.put(containerName, containerStatusString);
 	        }
 	    }
@@ -195,7 +206,7 @@ public class PodCrashStatusSnapshotRunner extends SnapshotRunnerBase {
 		
 	    for (V1Pod pod  : podList.getItems()) {
 	        ObjectNode objectNode = mapper.createObjectNode();
-	        objectNode = checkAddObject(objectNode, pod.getMetadata().getName(), "name");
+	        objectNode = checkAddObject(objectNode, pod.getMetadata().getName(), "podName");
 
 	        String namespace = pod.getMetadata().getNamespace();
 	        objectNode = checkAddObject(objectNode, namespace, "namespace");
@@ -217,15 +228,14 @@ public class PodCrashStatusSnapshotRunner extends SnapshotRunnerBase {
             for (Map.Entry<String, String> entry : containerName.entrySet()) {
                 containerNode.put(entry.getKey(), entry.getValue());
             }
-            objectNode.set("containerName", containerNode);
+            objectNode=checkAddObject(objectNode, containerNode,"containers");
 
             objectNode = checkAddInt(objectNode,getCrashCount(pod) , "crashCount");
             objectNode = checkAddInt(objectNode,getRestartCount(pod) , "restartCount");
             
 	        ObjectNode labelsObject = Utilities.getResourceLabels(config,mapper, pod);
-	        objectNode.set("customLabels", labelsObject);
+	        objectNode=checkAddObject(objectNode,labelsObject,"customLabels");
             
-            String nodeName = pod.getSpec().getNodeName();
             SummaryObj summary = getSummaryMap().get(ALL);
             if (summary == null) {
                 summary = initPodCrashStatusSummaryObject(config, ALL, ALL);
@@ -239,10 +249,7 @@ public class PodCrashStatusSnapshotRunner extends SnapshotRunnerBase {
                     getSummaryMap().put(namespace, summaryNamespace);
                 }
             }
-            boolean isMaster = false;
-            int masters = 0;
-            int workers = 0;
-
+          
             String phase = pod.getStatus().getPhase();
   
             if (phase.equals("Pending")) {

@@ -166,7 +166,6 @@ data:
           "customLabels": {
             "type": "object",
             "properties": {}
-            }
           },
           "clusterName": "string",
           "podCIDR": "string",
@@ -192,7 +191,8 @@ data:
           "ready": "string",
           "outOfDisk": "string",
           "memoryPressure": "string",
-          "diskPressure": "string"
+          "diskPressure": "string",
+          "notRunningPodCount":"integer"
       }
     }'
 
@@ -203,9 +203,7 @@ data:
           "customLabels": {
             "type": "object",
             "properties": {}
-            }
           },
-          "openShiftVersion": "string",
           "object_kind": "string",
           "object_name": "string",
           "object_namespace": "string",
@@ -352,21 +350,22 @@ data:
     
     namespaceQuotaUtilizationSchemaDefinition: '{
        "schema": {
-        "clusterName": "string",
-        "customLabels": {
-          "type": "object",
-          "properties": {
-          }
-        },
-        "openshiftPlatform": "string",
-        "cpuRequestUsed": "float",
-        "cpuRequestTotal": "float",
-        "cpuLimitsUsed": "float",
-        "cpuLimitsTotal": "float",
-        "memoryRequestUsed": "float",
-        "memoryRequestTotal": "float",
-        "memoryLimitsUsed": "float",
-        "memoryLimitsTotal": "float"
+         "namespace": "string",
+         "clusterName": "string",
+           "customLabels": {
+             "type": "object",
+             "properties": {
+           }
+         },
+         "openshiftPlatform": "string",
+         "cpuRequestUsed": "float",
+         "cpuRequestTotal": "float",
+         "cpuLimitsUsed": "float",
+         "cpuLimitsTotal": "float",
+         "memoryRequestUsed": "float",
+         "memoryRequestTotal": "float",
+         "memoryLimitsUsed": "float",
+         "memoryLimitsTotal": "float"
       }
     }'
     
@@ -422,7 +421,8 @@ data:
         "containers": {
             "type": "object",
             "additionalProperties": {
-          },
+            }
+         },
          "podName": "string",
          "errorReason": "string",
          "containerPhase": "string",

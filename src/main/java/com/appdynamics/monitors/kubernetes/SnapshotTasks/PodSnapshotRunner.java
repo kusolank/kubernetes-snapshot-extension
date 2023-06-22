@@ -152,7 +152,8 @@ public class PodSnapshotRunner extends SnapshotRunnerBase {
             String clusterName = Utilities.ensureClusterName(config, podItem.getMetadata().getClusterName());
 
             ObjectNode labelsObject = Utilities.getResourceLabels(config,mapper, podItem);
-            podObject.set("customLabels", labelsObject);
+            podObject=checkAddObject(podObject, labelsObject, "customLabels") ; 
+
             
             
             SummaryObj summary = getSummaryMap().get(ALL);

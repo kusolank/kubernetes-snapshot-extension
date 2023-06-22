@@ -145,7 +145,7 @@ public class DeploymentSnapshotRunner extends SnapshotRunnerBase {
 
             
             ObjectNode labelsObject = Utilities.getResourceLabels(config,mapper, deployItem);
-            deployObject.set("customLabels", labelsObject);
+            deployObject=checkAddObject(deployObject, labelsObject, "customLabels") ; 
             if (deployItem.getMetadata().getLabels() != null) {
                 String labels = "";
                 Iterator it = deployItem.getMetadata().getLabels().entrySet().iterator();

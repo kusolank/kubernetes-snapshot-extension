@@ -131,16 +131,5 @@ public class AppDMetricObj {
         }
         return "";
     }
-
-
-	@Override
-	public String toString() {
-		return "AppDMetricObj [name=" + name + ", parentSchema=" + parentSchema + ", parentSchemaDefinition="
-				+ parentSchemaDefinition + ", path=" + path + ", query=" + query + ", searchToken=" + searchToken
-				+ ", healthRuleToken=" + healthRuleToken + ", metricToken=" + metricToken + ", widgetName=" + widgetName
-				+ ", namespace=" + namespace + ", node=" + node + ", msServiceName=" + msServiceName + ", levelName="
-				+ levelName + ", level=" + level + "]";
-	}
-    
     
 }

@@ -553,41 +553,49 @@ public class Utilities {
     public static List<String>  getCustomTags(Map<String, String> config) {
 	
     	String customTags = config.get(CONFIG_CUSTOM_TAGS);
-		String []customTagArray =customTags.split(",");
-		 
-		return  Arrays.asList(customTagArray);
-         	  
+    	if(customTags!=null && !customTags.isEmpty()){
+			String []customTagArray =customTags.split(",");
+			 
+			return  Arrays.asList(customTagArray);
+    	}
+    	return null;
     }
 
     public static ObjectNode getResourceLabels(Map<String, String> config,ObjectMapper mapper, Object resource) {
-        ObjectNode labelsObject = mapper.createObjectNode();
-        Map<String, String> labels = new HashMap<>();
-        
-        if (resource instanceof V1Pod) {
-            labels = ((V1Pod) resource).getMetadata().getLabels();           
-        } else if (resource instanceof V1Namespace) {
-        	 labels = ((V1Namespace) resource).getMetadata().getLabels();
-        } else if (resource instanceof V1DaemonSet) {
-        	 labels = ((V1DaemonSet) resource).getMetadata().getLabels();
-        } else if (resource instanceof V1Deployment) {
-        	 labels = ((V1Deployment) resource).getMetadata().getLabels();
-        } else if (resource instanceof V1Node) {
-        	 labels = ((V1Node) resource).getMetadata().getLabels();
-        } else if (resource instanceof V1ReplicaSet) {
-        	 labels = ((V1ReplicaSet) resource).getMetadata().getLabels();
-        } else if (resource instanceof CoreV1Event) {
-        	 labels = ((CoreV1Event) resource).getMetadata().getLabels();
-        }
-        
-        if(labels!=null) {
-	        for (Map.Entry<String, String> entry : labels.entrySet()) {
-	            String key = entry.getKey();
-	            if(getCustomTags(config).contains(key)) {
-		            String value = entry.getValue();
-		            labelsObject.put(key, value);
-	            }
+    	List<String> customTags=getCustomTags(config);
+    	ObjectNode labelsObject = mapper.createObjectNode();
+    	if(customTags!=null && customTags.size()>0) {
+	    	
+	        Map<String, String> labels = new HashMap<>();
+	        
+	        if (resource instanceof V1Pod) {
+	            labels = ((V1Pod) resource).getMetadata().getLabels();           
+	        } else if (resource instanceof V1Namespace) {
+	        	 labels = ((V1Namespace) resource).getMetadata().getLabels();
+	        } else if (resource instanceof V1DaemonSet) {
+	        	 labels = ((V1DaemonSet) resource).getMetadata().getLabels();
+	        } else if (resource instanceof V1Deployment) {
+	        	 labels = ((V1Deployment) resource).getMetadata().getLabels();
+	        } else if (resource instanceof V1Node) {
+	        	 labels = ((V1Node) resource).getMetadata().getLabels();
+	        } else if (resource instanceof V1ReplicaSet) {
+	        	 labels = ((V1ReplicaSet) resource).getMetadata().getLabels();
+	        } else if (resource instanceof CoreV1Event) {
+	        	 labels = ((CoreV1Event) resource).getMetadata().getLabels();
 	        }
-        }
+	        
+	        if(labels!=null) {
+		        for (Map.Entry<String, String> entry : labels.entrySet()) {
+		            String key = entry.getKey();
+		            if(customTags.contains(key)) {
+			            String value = entry.getValue();
+			            labelsObject.put(key, value);
+		            }
+		        }
+        
+	        }
+	       
+	     }
         
         return labelsObject;
     }

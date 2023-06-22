@@ -136,7 +136,7 @@ public class NodeSnapshotRunner extends SnapshotRunnerBase {
             }
             
             ObjectNode labelsObject = Utilities.getResourceLabels(config,mapper, nodeObj);
-            nodeObject.set("customLabels", labelsObject);
+            nodeObject=checkAddObject(nodeObject, labelsObject, "customLabels") ; 
             
             boolean isMaster = false;
             int masters = 0;
@@ -164,7 +164,7 @@ public class NodeSnapshotRunner extends SnapshotRunnerBase {
                 }
             }
        
-            	nodeObject = checkAddObject(nodeObject,getNotRunningPodCount(nodeName, config),"notRunningPodCount");
+            	nodeObject = checkAddInt(nodeObject,getNotRunningPodCount(nodeName, config),"notRunningPodCount");
 			
             
             if(OPENSHIFT_VERSION.isEmpty()) {

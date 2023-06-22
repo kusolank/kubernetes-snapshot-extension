@@ -144,7 +144,8 @@ public class NodeWiseNotRunningPodsSnapshotRunner extends SnapshotRunnerBase {
 	        arrayNode.add(objectNode);
 
 	        ObjectNode labelsObject = Utilities.getResourceLabels(config,mapper, node);
-	        objectNode.set("customLabels", labelsObject);
+            objectNode=checkAddObject(objectNode, labelsObject, "customLabels") ; 
+
 	        
 	        boolean isMaster = false;
             if (node.getMetadata().getLabels() != null) {

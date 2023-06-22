@@ -126,7 +126,7 @@ public class PodResourceQuotaSnapshotRunner  extends SnapshotRunnerBase {
 	private SummaryObj initPODResourceQuotaSummaryObject(Map<String, String> config, String namespace, String node, String msName) {
 	    ObjectMapper mapper = new ObjectMapper();
 	    ObjectNode summary = mapper.createObjectNode();
-	    summary.put("msServiceName", msName);
+	    summary.put("MsServiceName", msName);
 	    summary.put("namespace", namespace);
 	    summary.put("PodCount", 0);
 	    summary.put("CpuRequest", 0);
@@ -147,7 +147,7 @@ public class PodResourceQuotaSnapshotRunner  extends SnapshotRunnerBase {
 	    ObjectMapper mapper = new ObjectMapper();
 	    ObjectNode summary = mapper.createObjectNode();
 	    summary.put("namespace", namespace);
-	    summary.put("msServiceName", microserviceData.getServiceName());
+	    summary.put("MsServiceName", microserviceData.getServiceName());
 	    summary.put("PodCount", microserviceData.getPodCount());
 	    summary.put("CpuRequest",microserviceData.getAverageCPURequest());
 	    summary.put("CpuLimit", microserviceData.getAverageCPULimit());
@@ -184,21 +184,20 @@ public class PodResourceQuotaSnapshotRunner  extends SnapshotRunnerBase {
 
 	
 	    metricsList.add(new AppDMetricObj("PodCount", parentSchema, CONFIG_SCHEMA_DEF_POD_RESOURCE_QUOTA,
-	            String.format("select msPodCount from %s where  clusterName = \"%s\" ", parentSchema, clusterName,filter), rootPath, ALL,ALL, msServiceName));
+	            String.format("select PodCount from %s where  clusterName = \"%s\" ", parentSchema, clusterName,filter), rootPath, ALL,ALL, msServiceName));
 
 	    metricsList.add(new AppDMetricObj("CpuRequest", parentSchema, CONFIG_SCHEMA_DEF_POD_RESOURCE_QUOTA,
-	            String.format("select msCpuRequest  from %s where   clusterName = \"%s\" ", parentSchema, clusterName,filter), rootPath, ALL,ALL, msServiceName));
+	            String.format("select CpuRequest  from %s where   clusterName = \"%s\" ", parentSchema, clusterName,filter), rootPath, ALL,ALL, msServiceName));
 
 	    metricsList.add(new AppDMetricObj("CpuLimit", parentSchema, CONFIG_SCHEMA_DEF_POD_RESOURCE_QUOTA,
-	            String.format("select msCpuLimit from %s where namespace and clusterName = \"%s\" ", parentSchema, clusterName,filter), rootPath,  ALL,ALL, msServiceName));
+	            String.format("select CpuLimit from %s where namespace and clusterName = \"%s\" ", parentSchema, clusterName,filter), rootPath,  ALL,ALL, msServiceName));
 
 	    metricsList.add(new AppDMetricObj("MemoryRequests", parentSchema, CONFIG_SCHEMA_DEF_POD_RESOURCE_QUOTA,
-	            String.format("select msMemoryRequests  from %s where  and clusterName = \"%s\" ", parentSchema, clusterName,filter), rootPath,  ALL,ALL, msServiceName));
+	            String.format("select MemoryRequests  from %s where  and clusterName = \"%s\" ", parentSchema, clusterName,filter), rootPath,  ALL,ALL, msServiceName));
 
 	    metricsList.add(new AppDMetricObj("MemoryRequests", parentSchema, CONFIG_SCHEMA_DEF_POD_RESOURCE_QUOTA,
-	            String.format("select msMemoryRequests as average from %s where  and clusterName = \"%s\" e", parentSchema, clusterName,filter), ALL, namespace,ALL, msServiceName));
+	            String.format("select MemoryLimits as average from %s where  and clusterName = \"%s\" e", parentSchema, clusterName,filter), ALL, namespace,ALL, msServiceName));
 
-	    logger.info("pod resource quota metrics"+metricsList.get(0).toString());
 	    
 	    return metricsList;
 	}
@@ -238,7 +237,7 @@ public class PodResourceQuotaSnapshotRunner  extends SnapshotRunnerBase {
 		        MicroserviceData microserviceData = entry.getValue();
 		        ObjectNode objectNode = mapper.createObjectNode();
 		        String namespace=microserviceData.getNamespace();
-		        objectNode= checkAddInt(objectNode, microserviceData.getPodCount(), "msPodCount");
+		        objectNode= checkAddInt(objectNode, microserviceData.getPodCount(), "podCount");
 		        objectNode=checkAddObject(objectNode, microserviceData.getServiceName(), "msServiceName");
 		        objectNode=checkAddFloat(objectNode, microserviceData.getAverageCPURequest(), "cpuRequest");
 		        objectNode=checkAddFloat(objectNode, microserviceData.getAverageCPULimit(), "cpuLimit");
@@ -246,8 +245,8 @@ public class PodResourceQuotaSnapshotRunner  extends SnapshotRunnerBase {
 		        objectNode=checkAddFloat(objectNode, microserviceData.getAverageMemoryLimits(), "memoryLimits");
 		        
 		      
-		        objectNode.set("customLabels", microserviceData.labels);
-		        
+		      
+		        objectNode=checkAddObject(objectNode, microserviceData.labels, "customLabels") ; 
 		        SummaryObj summary = getSummaryMap().get(ALL);
 	            if (summary == null) {
 	                summary = updatePODResourceQuotaSummaryObject(config, ALL, ALL,microserviceData);
