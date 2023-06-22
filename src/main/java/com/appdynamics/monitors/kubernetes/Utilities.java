@@ -145,7 +145,15 @@ public class Utilities {
 //        }
 
         JsonNode serverSchema = RestClient.doRequest(schemaUrl, config,accountName, apiKey, "", "GET");
-        if(serverSchema == null){
+        logger.info("serverSchema{} ,  Schema Url {}", serverSchema, schemaUrl);
+        int statusCode=0;
+        String code="";
+        if (serverSchema.has("statusCode")) {
+      		statusCode = serverSchema.get("statusCode").asInt();
+            code = serverSchema.get("code").asText();
+        }
+       
+        if(statusCode == 404 && code.equals("Missing.EventType")){
 
             logger.debug("Schema Url {} does not exists. creating {}", schemaUrl, requestBody);
 

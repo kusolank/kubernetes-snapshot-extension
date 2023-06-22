@@ -245,7 +245,6 @@ public class PodResourceQuotaSnapshotRunner  extends SnapshotRunnerBase {
 		        objectNode=checkAddFloat(objectNode, microserviceData.getAverageMemoryLimits(), "memoryLimits");
 		        
 		      
-		      
 		        objectNode=checkAddObject(objectNode, microserviceData.labels, "customLabels") ; 
 		        SummaryObj summary = getSummaryMap().get(ALL);
 	            if (summary == null) {

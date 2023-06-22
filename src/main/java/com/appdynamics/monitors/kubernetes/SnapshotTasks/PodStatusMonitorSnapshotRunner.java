@@ -210,8 +210,7 @@ public class PodStatusMonitorSnapshotRunner extends SnapshotRunnerBase {
 	            Utilities.incrementField(summaryNode, "NotRunningPodCount");
 		    }
            
-            
-            
+            objectNode = checkAddInt(objectNode, notRunningCount, "notRunningPodCount");
             int podRestarts = 0;
 
         
@@ -222,7 +221,7 @@ public class PodStatusMonitorSnapshotRunner extends SnapshotRunnerBase {
                 }
             }
             
-            objectNode = checkAddInt(objectNode, podRestarts, "RestartCount");
+            objectNode = checkAddInt(objectNode, podRestarts, "restartCount");
             Utilities.incrementField(summary, "RestartCount", podRestarts);
             Utilities.incrementField(summaryNamespace, "RestartCount", podRestarts);
             Utilities.incrementField(summaryNode, "RestartCount", podRestarts);
