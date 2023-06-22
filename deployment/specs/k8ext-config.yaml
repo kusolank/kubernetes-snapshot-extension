@@ -54,7 +54,7 @@ data:
     proxyUser: ""
     proxyPass: ""
 
-    customTags: #Add comma seperated tags/lables which needs to captured these will captured from resource metadata
+    customTags: hall,enviornment #Add comma seperated tags/lables which needs to captured these will captured from resource metadata
 
     entities:
     - type: "pod"
@@ -105,11 +105,7 @@ data:
        "schema" : {
           "object_uid": "string",
           "openShiftVersion": "string",
-          "customLabels": {
-            "type": "object",
-            "properties": {
-            }
-          },
+          "customLabels": "string",
           "clusterName": "string",
           "deploymentName": "string",
           "creationTimestamp": "date",
@@ -163,10 +159,7 @@ data:
       "schema" : {
           "nodeName": "string",
           "openShiftVersion": "string",
-          "customLabels": {
-            "type": "object",
-            "properties": {}
-          },
+          "customLabels": "string",
           "clusterName": "string",
           "podCIDR": "string",
           "taints": "string",
@@ -200,10 +193,7 @@ data:
        "schema" : {
           "firstTimestamp": "date",
           "openShiftVersion": "string",
-          "customLabels": {
-            "type": "object",
-            "properties": {}
-          },
+          "customLabels": "string",
           "object_kind": "string",
           "object_name": "string",
           "object_namespace": "string",
@@ -239,10 +229,7 @@ data:
         "clusterName": "string",
         "name": "string",
         "openShiftVersion": "string",
-        "customLabels": {
-          "type": "object",
-          "properties": {}
-        },
+        "customLabels": "string",
         "namespace": "string",
         "object_uid": "string",
         "creationTimestamp": "date",
@@ -269,11 +256,7 @@ data:
         "clusterName": "string",
         "openShiftVersion": "string",
         "name": "string",
-        "customLabels": {
-          "type": "object",
-          "properties": {
-          }
-        },
+        "customLabels": "string",
         "namespace": "string",
         "object_uid": "string",
         "creationTimestamp": "date",
@@ -298,11 +281,7 @@ data:
         "openShiftVersion": "string",
         "name": "string",
         "namespace": "string",
-        "customLabels": {
-          "type": "object",
-          "properties": {
-          }
-        },
+        "customLabels": "string",
         "object_uid": "string",
         "creationTimestamp": "date",
         "deletionTimestamp": "date",
@@ -334,11 +313,7 @@ data:
       "schema": {
         "clusterName": "string",
         "openShiftVersion": "string",
-        "customLabels": {
-          "type": "object",
-          "properties": {
-          }
-        },
+        "customLabels": "string",
         "msServiceName": "string",
         "podCount": "integer",
         "cpuRequest": "float",
@@ -352,11 +327,7 @@ data:
        "schema": {
          "namespace": "string",
          "clusterName": "string",
-           "customLabels": {
-             "type": "object",
-             "properties": {
-           }
-         },
+         "customLabels": "string",
          "openshiftPlatform": "string",
          "cpuRequestUsed": "float",
          "cpuRequestTotal": "float",
@@ -373,11 +344,7 @@ data:
        "schema": {
          "clusterName": "string",
          "openshiftVersion": "string",
-         "customLabels": {
-           "type": "object",
-           "properties": {
-          }
-         },
+         "customLabels": "string",
          "nodeName": "string",
          "namespace": "string",
          "containerName": "string",
@@ -393,11 +360,7 @@ data:
     notRunningPodCountPerNodeSchemaDefinition: '{
        "schema": {
           "clusterName": "string",
-          "customLabels": {
-             "type": "object",
-             "properties": {
-              }
-      	  },
+          "customLabels": "string",
           "openshiftVersion": "string",
           "nodeName": "string",
           "containerStatus": "string",
@@ -408,21 +371,13 @@ data:
      
     podsCrashStatusSchemaDefinition: '{
       "schema": {
-        "clusterName": "string",
-        "openshiftVersion": "string",
-        "customLabels": {
-          "type": "object",
-          "properties": {
-          }
-      	},
-        "nodeName": "string",
-        "namespace": "string",
-        "deploymentName": "string",
-        "containers": {
-            "type": "object",
-            "additionalProperties": {
-            }
-         },
+         "clusterName": "string",
+         "openshiftVersion": "string",
+         "customLabels": "string",
+         "nodeName": "string",
+         "namespace": "string",
+         "deploymentName": "string",
+         "containers": "string",
          "podName": "string",
          "errorReason": "string",
          "containerPhase": "string",
