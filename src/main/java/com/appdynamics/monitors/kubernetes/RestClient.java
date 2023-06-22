@@ -150,6 +150,8 @@ public class RestClient {
             if (method=="POST") {
             	return	doPost(url, config, accountName, apiKey, requestBody, method);
            	 
+			}else if(method=="GET") {
+				return	doGet(url, config, accountName, apiKey, requestBody, method);
 			}
             conn.setDoOutput(true);
             if (method.equals("PATCH")) {
