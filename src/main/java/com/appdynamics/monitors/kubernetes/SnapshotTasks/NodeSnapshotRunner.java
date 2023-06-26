@@ -24,6 +24,7 @@ import com.appdynamics.extensions.metrics.Metric;
 import com.appdynamics.extensions.util.AssertUtils;
 import com.appdynamics.monitors.kubernetes.Constants;
 import com.appdynamics.monitors.kubernetes.Globals;
+import com.appdynamics.monitors.kubernetes.KubernetesClientSingleton;
 import com.appdynamics.monitors.kubernetes.Utilities;
 import com.appdynamics.monitors.kubernetes.Metrics.UploadMetricsTask;
 import com.appdynamics.monitors.kubernetes.Models.AppDMetricObj;
@@ -77,11 +78,11 @@ public class NodeSnapshotRunner extends SnapshotRunnerBase {
                 V1NodeList nodeList;
 
                 try {
-                    io.kubernetes.client.openapi.ApiClient client = Utilities.initClient(config);
-                    this.setAPIServerTimeout(client, K8S_API_TIMEOUT);
-                    Configuration.setDefaultApiClient(client);
-                    CoreV1Api api = new CoreV1Api();
-                    this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
+                	ApiClient client = KubernetesClientSingleton.getInstance(config);
+    				CoreV1Api api =KubernetesClientSingleton.getCoreV1ApiClient(config);
+    			    this.setAPIServerTimeout(KubernetesClientSingleton.getInstance(config), K8S_API_TIMEOUT);
+    	            Configuration.setDefaultApiClient(client);
+    	            this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
                     nodeList = api.listNode(null,
                             false,
                             null,
@@ -327,13 +328,14 @@ public class NodeSnapshotRunner extends SnapshotRunnerBase {
  	public int getNotRunningPodCount(String nodeName, Map<String, String> config)  {
 		int count = 0;
 		try {
-			ApiClient client = Utilities.initClient(config);
-	        this.setAPIServerTimeout(client, K8S_API_TIMEOUT);
-	        Configuration.setDefaultApiClient(client);
-		    CoreV1Api coreV1Api = new CoreV1Api(client);
+			ApiClient client = KubernetesClientSingleton.getInstance(config);
+			CoreV1Api api =KubernetesClientSingleton.getCoreV1ApiClient(config);
+		    this.setAPIServerTimeout(KubernetesClientSingleton.getInstance(config), K8S_API_TIMEOUT);
+            Configuration.setDefaultApiClient(client);
+            this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
 		    String fieldSelector = "spec.nodeName=" + nodeName;
 		    String podPhase = "NotRunning";
-		    V1PodList podList = coreV1Api.listNamespacedPod(ALL, null, null, null, fieldSelector, null, null, null, null, K8S_API_TIMEOUT, null);
+		    V1PodList podList = api.listNamespacedPod(ALL, null, null, null, fieldSelector, null, null, null, null, K8S_API_TIMEOUT, null);
 		   
 		    for (V1Pod pod : podList.getItems()) {
 		        if (pod.getStatus().getPhase().equalsIgnoreCase(podPhase)) {

@@ -21,6 +21,8 @@ import java.util.concurrent.CountDownLatch;
 import com.appdynamics.extensions.TasksExecutionServiceProvider;
 import com.appdynamics.extensions.metrics.Metric;
 import com.appdynamics.extensions.util.AssertUtils;
+import com.appdynamics.monitors.kubernetes.Constants;
+import com.appdynamics.monitors.kubernetes.KubernetesClientSingleton;
 import com.appdynamics.monitors.kubernetes.Utilities;
 import com.appdynamics.monitors.kubernetes.Metrics.UploadMetricsTask;
 import com.appdynamics.monitors.kubernetes.Models.AppDMetricObj;
@@ -146,14 +148,14 @@ public class NamespaceQuotaUtilizationSnapshotRunner  extends SnapshotRunnerBase
 	   
 
 	   try { 
-	    ApiClient client = Utilities.initClient(config);
-        this.setAPIServerTimeout(client, K8S_API_TIMEOUT);
-        Configuration.setDefaultApiClient(client);
-	    CoreV1Api coreV1Api = new CoreV1Api(client);
+		   ApiClient client = KubernetesClientSingleton.getInstance(config);
+			CoreV1Api api =KubernetesClientSingleton.getCoreV1ApiClient(config);
+		    this.setAPIServerTimeout(KubernetesClientSingleton.getInstance(config), K8S_API_TIMEOUT);
+           Configuration.setDefaultApiClient(client);
+           this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
 	    
-	    // Fetch the list of namespaces
-	    V1NamespaceList namespaceList = coreV1Api.listNamespace(null, null, null, null, null, null, null, null, null, null);
-	    return namespaceList;
+
+           return api.listNamespace(null, null, null, null, null, null, null, null, null, null);
 	   }
 	    catch (Exception ex){
 	        throw new Exception("Unable to connect to Kubernetes API server because it may be unavailable or the cluster credentials are invalid", ex);
@@ -202,8 +204,7 @@ public class NamespaceQuotaUtilizationSnapshotRunner  extends SnapshotRunnerBase
                     getSummaryMap().put(namespace, summaryNamespace);
                 }
             }
-
-             
+           
 	        objectNode = checkAddObject(objectNode, clusterName, "clusterName");
 	        arrayNode.add(objectNode);
 
@@ -234,7 +235,7 @@ public class NamespaceQuotaUtilizationSnapshotRunner  extends SnapshotRunnerBase
 	
 	public static ArrayList<AppDMetricObj> initMetrics(Map<String, String> config, String namespace,String node) {
 	    if (Utilities.ClusterName == null || Utilities.ClusterName.isEmpty()) {
-	        return new ArrayList<AppDMetricObj>();
+	        return new ArrayList<>();
 	    }
 
 	    String clusterName = Utilities.ClusterName;
@@ -357,9 +358,8 @@ public class NamespaceQuotaUtilizationSnapshotRunner  extends SnapshotRunnerBase
 
 	public static float convertCpuQuantityToCores(Quantity cpuLimit) {
  	    BigDecimal numericalAmount = cpuLimit.getNumericalAmount();
-	    System.out.println(numericalAmount);
-	    float milicores = numericalAmount.floatValue() * 1000;
-	    return milicores;
+	    return numericalAmount.floatValue() * 1000;
+	   
 	}
 	
 	public static float convertMemoryQuantityToMegabytes(Quantity memoryLimit) {

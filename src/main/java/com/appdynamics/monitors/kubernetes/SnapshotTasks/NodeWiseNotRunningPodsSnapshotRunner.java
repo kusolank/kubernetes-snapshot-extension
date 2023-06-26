@@ -27,6 +27,7 @@ import com.appdynamics.extensions.metrics.Metric;
 import com.appdynamics.extensions.util.AssertUtils;
 import com.appdynamics.monitors.kubernetes.Constants;
 import com.appdynamics.monitors.kubernetes.Globals;
+import com.appdynamics.monitors.kubernetes.KubernetesClientSingleton;
 import com.appdynamics.monitors.kubernetes.Utilities;
 import com.appdynamics.monitors.kubernetes.Metrics.UploadMetricsTask;
 import com.appdynamics.monitors.kubernetes.Models.AppDMetricObj;
@@ -102,13 +103,14 @@ public class NodeWiseNotRunningPodsSnapshotRunner extends SnapshotRunnerBase {
 	public int getNotRunningPodCount(String nodeName, Map<String, String> config) throws Exception  {
 		 int count = 0;
 		try {
-			ApiClient client = Utilities.initClient(config);
-	        this.setAPIServerTimeout(client, K8S_API_TIMEOUT);
-	        Configuration.setDefaultApiClient(client);
-		    CoreV1Api coreV1Api = new CoreV1Api(client);
+			ApiClient client = KubernetesClientSingleton.getInstance(config);
+			CoreV1Api api =KubernetesClientSingleton.getCoreV1ApiClient(config);
+		    this.setAPIServerTimeout(KubernetesClientSingleton.getInstance(config), K8S_API_TIMEOUT);
+            Configuration.setDefaultApiClient(client);
+            this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
 		    String fieldSelector = "spec.nodeName=" + nodeName;
 		    String podPhase = "NotRunning";
-		    V1PodList podList = coreV1Api.listNamespacedPod(ALL, null, null, null, fieldSelector, null, null, null, null, null, null);
+		    V1PodList podList = api.listNamespacedPod(ALL, null, null, null, fieldSelector, null, null, null, null, null, null);
 		   
 		    for (V1Pod pod : podList.getItems()) {
 		        if (pod.getStatus().getPhase().equalsIgnoreCase(podPhase)) {
@@ -135,7 +137,7 @@ public class NodeWiseNotRunningPodsSnapshotRunner extends SnapshotRunnerBase {
 	        	objectNode = checkAddObject(objectNode,OPENSHIFT_VERSION, "openshiftVersion");
 	        }
 	        objectNode = checkAddObject(objectNode, node.getMetadata().getName(), "nodeName");
-	        objectNode = checkAddObject(objectNode, getContainerStatus(node), "containerStatus");
+	        objectNode = checkAddObject(objectNode, getContainerStatus(node,config), "containerStatus");
 	        int notRunningPodCount = getNotRunningPodCount(node.getMetadata().getName(), config);
 			objectNode=checkAddInt(objectNode, notRunningPodCount, "notRunningPodCount");
 
@@ -199,8 +201,8 @@ public class NodeWiseNotRunningPodsSnapshotRunner extends SnapshotRunnerBase {
 	    return arrayNode;
 	}
 	
-	public String getContainerStatus(V1Node node) throws Exception {
-	    List<V1Pod> pods = getPodsFromNode(node);
+	public String getContainerStatus(V1Node node, Map<String, String> config) throws Exception {
+	    List<V1Pod> pods = getPodsFromNode(node,config);
 
 	    StringBuilder containerStatusBuilder = new StringBuilder();
 
@@ -235,12 +237,16 @@ public class NodeWiseNotRunningPodsSnapshotRunner extends SnapshotRunnerBase {
 	    }
 	}
 
-	private List<V1Pod> getPodsFromNode(V1Node node) throws Exception {
+	private List<V1Pod> getPodsFromNode(V1Node node, Map<String, String> config) throws Exception {
 	    List<V1Pod> pods = new ArrayList<>();
 	    V1ObjectMeta objectMeta = node.getMetadata();
 	    String nodeName = objectMeta.getName();
 
-	    CoreV1Api api = new CoreV1Api();
+	    ApiClient client = KubernetesClientSingleton.getInstance(config);
+		CoreV1Api api =KubernetesClientSingleton.getCoreV1ApiClient(config);
+	    this.setAPIServerTimeout(KubernetesClientSingleton.getInstance(config), K8S_API_TIMEOUT);
+        Configuration.setDefaultApiClient(client);
+        this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
 	    try {
 	        // Filter pods based on node name across all namespaces
 	        V1PodList podList = api.listPodForAllNamespaces(false, null, null, null, null, "spec.nodeName=" + nodeName, null, null, null, null);
@@ -257,12 +263,12 @@ public class NodeWiseNotRunningPodsSnapshotRunner extends SnapshotRunnerBase {
 	private V1NodeList getNodesFromKubernetes(Map<String, String> config) throws Exception {
 		  V1NodeList nodeList;
 		try {
-		ApiClient client = Utilities.initClient(config);
-        this.setAPIServerTimeout(client, K8S_API_TIMEOUT);
-        Configuration.setDefaultApiClient(client);
-        CoreV1Api api = new CoreV1Api();
-        this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
-        nodeList = api.listNode(null,
+			ApiClient client = KubernetesClientSingleton.getInstance(config);
+			CoreV1Api api =KubernetesClientSingleton.getCoreV1ApiClient(config);
+		    this.setAPIServerTimeout(KubernetesClientSingleton.getInstance(config), K8S_API_TIMEOUT);
+            Configuration.setDefaultApiClient(client);
+            this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
+            nodeList = api.listNode(null,
                 false,
                 null,
                 null,
@@ -270,11 +276,11 @@ public class NodeWiseNotRunningPodsSnapshotRunner extends SnapshotRunnerBase {
                 null,
                 null,
                 K8S_API_TIMEOUT,
-                false);    }
-    catch (Exception ex){
-        throw new Exception("Unable to connect to Kubernetes API server because it may be unavailable or the cluster credentials are invalid", ex);
-    }
-        return nodeList;
+	                false);    }
+	    catch (Exception ex){
+	        throw new Exception("Unable to connect to Kubernetes API server because it may be unavailable or the cluster credentials are invalid", ex);
+	    }
+	        return nodeList;
 	
 	}
 
@@ -287,7 +293,7 @@ public class NodeWiseNotRunningPodsSnapshotRunner extends SnapshotRunnerBase {
 	    ObjectNode summary = mapper.createObjectNode();
 
         summary.put("nodename", node);
-	    summary.put("NotRunningPodCountPerNode", 0); // Add the new metric field with an initial value of 0
+	    summary.put("NotRunningPodCount", 0); // Add the new metric field with an initial value of 0
 
 	    ArrayList<AppDMetricObj> metricsList = initMetrics(config, node);
 
@@ -303,7 +309,7 @@ public class NodeWiseNotRunningPodsSnapshotRunner extends SnapshotRunnerBase {
 	    ObjectNode summary = mapper.createObjectNode();
 
         summary.put("nodename", node);
-	    summary.put("NotRunningPodCountPerNode", notRunningPodCountPerNode); // Add the new metric field with an initial value of 0
+	    summary.put("NotRunningPodCount", notRunningPodCountPerNode); // Add the new metric field with an initial value of 0
 
 	    ArrayList<AppDMetricObj> metricsList = initMetrics(config, node);
 

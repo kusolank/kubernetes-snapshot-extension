@@ -315,6 +315,7 @@ podResourceQuotaSchemaDefinition: '{
   "schema": {
     "clusterName": "string",
     "openShiftVersion": "string",
+    "nodeName": "string",
     "customLabels": "string",
     "msServiceName": "string",
     "podCount": "integer",

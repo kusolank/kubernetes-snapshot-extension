@@ -28,7 +28,7 @@ data:
         <Logger name="com.appdynamics" level="error" additivity="false">
             <AppenderRef ref="FileAppender"/>
         </Logger>
-         <Logger name="com.appdynamics.monitors.kubernetes" level="info" additivity="false">
+         <Logger name="com.appdynamics.monitors.kubernetes" level="error" additivity="false">
             <AppenderRef ref="FileAppender"/>
         </Logger>
         <Logger name="com.singularity.ee.agent.systemagent.task.sigar.SigarAppAgentMonitor" level="error" additivity="false">

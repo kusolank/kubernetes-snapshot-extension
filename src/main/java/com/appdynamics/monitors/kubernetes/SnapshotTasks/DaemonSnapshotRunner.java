@@ -19,6 +19,7 @@ import java.util.concurrent.CountDownLatch;
 import com.appdynamics.extensions.TasksExecutionServiceProvider;
 import com.appdynamics.extensions.metrics.Metric;
 import com.appdynamics.extensions.util.AssertUtils;
+import com.appdynamics.monitors.kubernetes.KubernetesClientSingleton;
 import com.appdynamics.monitors.kubernetes.Utilities;
 import com.appdynamics.monitors.kubernetes.Metrics.UploadMetricsTask;
 import com.appdynamics.monitors.kubernetes.Models.AppDMetricObj;
@@ -61,14 +62,11 @@ public class DaemonSnapshotRunner extends SnapshotRunnerBase{
             try {
                 V1DaemonSetList dsList;
                 try {
-                    ApiClient client = Utilities.initClient(config);
+                    ApiClient client = KubernetesClientSingleton.getInstance(config);
                     this.setAPIServerTimeout(client, K8S_API_TIMEOUT);
                     Configuration.setDefaultApiClient(client);
+                    AppsV1Api api = KubernetesClientSingleton.getAppsV1ApiClient(config);
                     
-                    AppsV1Api api = new AppsV1Api();
-                    
-//                    this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
-
                     dsList = api.listDaemonSetForAllNamespaces(
                     		false, //allow Watch bookmarks
                     		null,  //_continue - relevant for pagination

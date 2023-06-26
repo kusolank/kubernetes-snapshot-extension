@@ -13,7 +13,6 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -21,8 +20,7 @@ import java.util.concurrent.CountDownLatch;
 import com.appdynamics.extensions.TasksExecutionServiceProvider;
 import com.appdynamics.extensions.metrics.Metric;
 import com.appdynamics.extensions.util.AssertUtils;
-import com.appdynamics.monitors.kubernetes.Constants;
-import com.appdynamics.monitors.kubernetes.Globals;
+import com.appdynamics.monitors.kubernetes.KubernetesClientSingleton;
 import com.appdynamics.monitors.kubernetes.Utilities;
 import com.appdynamics.monitors.kubernetes.Metrics.UploadMetricsTask;
 import com.appdynamics.monitors.kubernetes.Models.AppDMetricObj;
@@ -39,6 +37,7 @@ import io.kubernetes.client.openapi.models.V1ContainerStateTerminated;
 import io.kubernetes.client.openapi.models.V1ContainerStatus;
 import io.kubernetes.client.openapi.models.V1Pod;
 import io.kubernetes.client.openapi.models.V1PodList;
+
 
 public class PodCrashStatusSnapshotRunner extends SnapshotRunnerBase {
 
@@ -173,11 +172,11 @@ public class PodCrashStatusSnapshotRunner extends SnapshotRunnerBase {
 	private V1PodList getPodsFromKubernetes(Map<String, String> config) throws Exception {
 		  V1PodList podList;
 		try {
-		ApiClient client = Utilities.initClient(config);
-        this.setAPIServerTimeout(client, K8S_API_TIMEOUT);
-        Configuration.setDefaultApiClient(client);
-        CoreV1Api api = new CoreV1Api();
-        this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
+			ApiClient client = KubernetesClientSingleton.getInstance(config);
+			CoreV1Api api =KubernetesClientSingleton.getCoreV1ApiClient(config);
+		    this.setAPIServerTimeout(KubernetesClientSingleton.getInstance(config), K8S_API_TIMEOUT);
+            Configuration.setDefaultApiClient(client);
+            this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
          podList = api.listPodForAllNamespaces(null,
                 null,
                 null,

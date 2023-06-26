@@ -102,7 +102,6 @@ public class RestClient {
 
 						return jsonNode;
 					} catch (IOException e) {
-						// TODO Auto-generated catch block
 						e.printStackTrace();
 					}
 					return null;
@@ -135,7 +134,6 @@ public class RestClient {
 
     				return jsonNode;
     			} catch (IOException e) {
-					// TODO Auto-generated catch block
     				e.printStackTrace();
 					logger.error("doPost  doPost Error while processing {} on URL {}. Reason {}", method, url, e.getMessage()+" :: "+e.getLocalizedMessage() );
 		            
@@ -147,9 +145,8 @@ public class RestClient {
         BufferedReader br = null;
         try {
             HttpURLConnection conn = openConnection(url, config);
-            if (method=="POST") {
-            	return	doPost(url, config, accountName, apiKey, requestBody, method);
-           	 
+			if (method=="POST") {
+			    return	doPost(url, config, accountName, apiKey, requestBody, method);
 			}else if(method=="GET") {
 				return	doGet(url, config, accountName, apiKey, requestBody, method);
 			}
@@ -178,7 +175,6 @@ public class RestClient {
             ObjectMapper objectMapper = new ObjectMapper();
             return objectMapper.readTree(response);
         } catch (IOException e) {
-	    e.printStackTrace();
             logger.error("Error while processing {} on URL {}. Reason {}", method, url, e.toString());
             return null;
         }

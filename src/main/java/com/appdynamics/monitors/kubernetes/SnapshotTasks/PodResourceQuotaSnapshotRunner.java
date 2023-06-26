@@ -1,7 +1,6 @@
 package com.appdynamics.monitors.kubernetes.SnapshotTasks;
 
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_RECS_BATCH_SIZE;
-import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_DEF_NAMESPACE_QUOTA_UTILIZATION;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_DEF_POD_RESOURCE_QUOTA;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_NAME_POD_RESOURCE_QUOTA;
 import static com.appdynamics.monitors.kubernetes.Constants.OPENSHIFT_VERSION;
@@ -10,12 +9,12 @@ import static com.appdynamics.monitors.kubernetes.Utilities.checkAddFloat;
 import static com.appdynamics.monitors.kubernetes.Utilities.checkAddInt;
 import static com.appdynamics.monitors.kubernetes.Utilities.checkAddObject;
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -23,6 +22,9 @@ import java.util.concurrent.CountDownLatch;
 import com.appdynamics.extensions.TasksExecutionServiceProvider;
 import com.appdynamics.extensions.metrics.Metric;
 import com.appdynamics.extensions.util.AssertUtils;
+import com.appdynamics.monitors.kubernetes.Constants;
+import com.appdynamics.monitors.kubernetes.KubernetesClientSingleton;
+import com.appdynamics.monitors.kubernetes.MicroserviceData;
 import com.appdynamics.monitors.kubernetes.Utilities;
 import com.appdynamics.monitors.kubernetes.Metrics.UploadMetricsTask;
 import com.appdynamics.monitors.kubernetes.Models.AppDMetricObj;
@@ -38,11 +40,13 @@ import io.kubernetes.client.openapi.Configuration;
 import io.kubernetes.client.openapi.apis.AppsV1Api;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.models.V1Container;
+import io.kubernetes.client.openapi.models.V1Node;
 import io.kubernetes.client.openapi.models.V1ObjectMeta;
 import io.kubernetes.client.openapi.models.V1OwnerReference;
 import io.kubernetes.client.openapi.models.V1Pod;
 import io.kubernetes.client.openapi.models.V1PodList;
 import io.kubernetes.client.openapi.models.V1ReplicaSet;
+import io.kubernetes.client.util.Config;
 
 public class PodResourceQuotaSnapshotRunner  extends SnapshotRunnerBase {
 
@@ -82,44 +86,43 @@ public class PodResourceQuotaSnapshotRunner  extends SnapshotRunnerBase {
 	        try {
 	        	V1PodList pods =  getPodsFromKubernetes(config);
 
-	            createPayload(pods, config, publishUrl, accountName, accountName);
+	            createPayload(pods, config, publishUrl, accountName, apiKey);
 	            List<Metric> metricList = getMetricsFromSummary(getSummaryMap(), config);
 
 	            logger.info("About to send {} POD Resource Quota metrics", metricList.size());
 	            UploadMetricsTask metricsTask = new UploadMetricsTask(getConfiguration(), getServiceProvider().getMetricWriteHelper(), metricList, countDownLatch);
 	            getConfiguration().getExecutorService().execute("UploadPodResourceQuotaMetricsTask", metricsTask);
-	        } catch (IOException e) {
+	        } catch (Exception  e) {
 	            countDownLatch.countDown();
 	            logger.error("Failed to push POD Resource Quota data", e);
-	        } catch (Exception e) {
-	            countDownLatch.countDown();
-	            logger.error("Failed to push POD Resource Quota data", e);
-	        }
+	        } 
 	    }
 	}
 
 	private V1PodList getPodsFromKubernetes(Map<String, String> config) throws Exception {
-		  V1PodList podList;
+		
+		V1PodList podList;
 		try {
-		ApiClient client = Utilities.initClient(config);
-      this.setAPIServerTimeout(client, K8S_API_TIMEOUT);
-      Configuration.setDefaultApiClient(client);
-      CoreV1Api api = new CoreV1Api();
-      this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
-       podList = api.listPodForAllNamespaces(null,
-              null,
-              null,
-              null,
-              null,
-              null,
-              null,
-              null,
-              null, null);
-  }
-  catch (Exception ex){
-      throw new Exception("Unable to connect to Kubernetes API server because it may be unavailable or the cluster credentials are invalid", ex);
-  }
-      return podList;
+			ApiClient client = KubernetesClientSingleton.getInstance(config);
+			CoreV1Api api =KubernetesClientSingleton.getCoreV1ApiClient(config);
+		    this.setAPIServerTimeout(KubernetesClientSingleton.getInstance(config), K8S_API_TIMEOUT);
+            Configuration.setDefaultApiClient(client);
+            this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
+            podList = api.listPodForAllNamespaces(null,
+	          null,
+	          null,
+	          null,
+	          null,
+	          null,
+	          null,
+	          null,
+	          null, null);
+		}
+	  catch (Exception ex){
+	      throw new Exception("Unable to connect to Kubernetes API server because it may be unavailable or the cluster credentials are invalid", ex);
+	  }
+	  
+		return podList;
 	
 	}
 	
@@ -135,7 +138,7 @@ public class PodResourceQuotaSnapshotRunner  extends SnapshotRunnerBase {
 	    summary.put("MemoryRequests", 0);
 	    
 
-	    ArrayList<AppDMetricObj> metricsList = initMetrics(config,namespace, node);
+	    ArrayList<AppDMetricObj> metricsList = initMetrics(config,namespace, node,msName);
 
 	    String path = Utilities.getMetricsPath(config,msName); 
 
@@ -155,14 +158,44 @@ public class PodResourceQuotaSnapshotRunner  extends SnapshotRunnerBase {
 	    summary.put("MemoryRequests", microserviceData.getAverageMemoryRequests());
 	    
 
-	    ArrayList<AppDMetricObj> metricsList = initMetrics(config,namespace, node);
-
-	    String path = Utilities.getMetricsPath(config, microserviceData.getServiceName() ); 
+	    ArrayList<AppDMetricObj> metricsList = initMetrics(config,namespace, node,microserviceData.getServiceName());
+        String path="";
+	    if(namespace.equals(ALL)) {
+        	path = Utilities.getMetricsPath(config, namespace, microserviceData ); 
+        }
+        else
+        {
+        	path = Utilities.getMetricsPath(config,microserviceData.getServiceName()); 
+        }
+	    
 
 	    return new SummaryObj(summary, metricsList, path);
 	}
 	
-	private ArrayList<AppDMetricObj> initMetrics(Map<String, String> config, String namespace, String msServiceName) {
+	private SummaryObj updatePODResourceQuotaSummaryObject(Map<String, String> config, MicroserviceData microserviceData,String node,
+			String masterWorker) {
+		 ObjectMapper mapper = new ObjectMapper();
+		    ObjectNode summary = mapper.createObjectNode();
+		    String namespace=microserviceData.getNamespace();
+		
+		    summary.put("namespace",namespace);
+		    summary.put("MsServiceName", microserviceData.getServiceName());
+		    summary.put("PodCount", microserviceData.getPodCount());
+		    summary.put("CpuRequest",microserviceData.getAverageCPURequest());
+		    summary.put("CpuLimit", microserviceData.getAverageCPULimit());
+		    summary.put("MemoryLimits", microserviceData.getAverageMemoryLimits());
+		    summary.put("MemoryRequests", microserviceData.getAverageMemoryRequests());
+		    
+
+		    ArrayList<AppDMetricObj> metricsList = initMetrics(config,namespace, node,microserviceData.getServiceName());
+	       String path = Utilities.getMetricsPath(config, namespace, node,microserviceData ,masterWorker); 
+	        
+
+		return  new SummaryObj(summary, metricsList, path);
+	}
+
+	
+	private ArrayList<AppDMetricObj> initMetrics(Map<String, String> config, String namespace, String node,String msServiceName) {
 	    if (Utilities.ClusterName == null || Utilities.ClusterName.isEmpty()) {
 	        return new ArrayList<AppDMetricObj>();
 	    }
@@ -177,6 +210,9 @@ public class PodResourceQuotaSnapshotRunner  extends SnapshotRunnerBase {
 
         if(msServiceName != null && !msServiceName.equals(ALL)){
             nodeCondition = String.format("and msServiceName = \"%s\"", msServiceName);
+        }else
+        if( !namespace.equals(ALL)){
+        	namespacesCondition = String.format("and msServiceName = \"%s\"", msServiceName);
         }
 
         String filter = namespacesCondition.isEmpty() ? nodeCondition : namespacesCondition;
@@ -184,21 +220,21 @@ public class PodResourceQuotaSnapshotRunner  extends SnapshotRunnerBase {
 
 	
 	    metricsList.add(new AppDMetricObj("PodCount", parentSchema, CONFIG_SCHEMA_DEF_POD_RESOURCE_QUOTA,
-	            String.format("select PodCount from %s where  clusterName = \"%s\" ", parentSchema, clusterName,filter), rootPath, ALL,ALL, msServiceName));
+	            String.format("select PodCount from %s where  clusterName = \"%s\" ", parentSchema, clusterName,filter), rootPath, namespace,node, msServiceName));
 
-	    metricsList.add(new AppDMetricObj("CpuRequest", parentSchema, CONFIG_SCHEMA_DEF_POD_RESOURCE_QUOTA,
-	            String.format("select CpuRequest  from %s where   clusterName = \"%s\" ", parentSchema, clusterName,filter), rootPath, ALL,ALL, msServiceName));
+	  	    metricsList.add(new AppDMetricObj("CpuRequest", parentSchema, CONFIG_SCHEMA_DEF_POD_RESOURCE_QUOTA,
+	  	            String.format("select CpuRequest  from %s where   clusterName = \"%s\" ", parentSchema, clusterName,filter), rootPath, namespace,node, msServiceName));
 
-	    metricsList.add(new AppDMetricObj("CpuLimit", parentSchema, CONFIG_SCHEMA_DEF_POD_RESOURCE_QUOTA,
-	            String.format("select CpuLimit from %s where namespace and clusterName = \"%s\" ", parentSchema, clusterName,filter), rootPath,  ALL,ALL, msServiceName));
+	  	    metricsList.add(new AppDMetricObj("CpuLimit", parentSchema, CONFIG_SCHEMA_DEF_POD_RESOURCE_QUOTA,
+	  	            String.format("select CpuLimit from %s where namespace and clusterName = \"%s\" ", parentSchema, clusterName,filter), rootPath,  namespace,node, msServiceName));
 
-	    metricsList.add(new AppDMetricObj("MemoryRequests", parentSchema, CONFIG_SCHEMA_DEF_POD_RESOURCE_QUOTA,
-	            String.format("select MemoryRequests  from %s where  and clusterName = \"%s\" ", parentSchema, clusterName,filter), rootPath,  ALL,ALL, msServiceName));
+	  	    metricsList.add(new AppDMetricObj("MemoryRequests", parentSchema, CONFIG_SCHEMA_DEF_POD_RESOURCE_QUOTA,
+	  	            String.format("select MemoryRequests  from %s where  and clusterName = \"%s\" ", parentSchema, clusterName,filter), rootPath,  namespace,node, msServiceName));
 
-	    metricsList.add(new AppDMetricObj("MemoryRequests", parentSchema, CONFIG_SCHEMA_DEF_POD_RESOURCE_QUOTA,
-	            String.format("select MemoryLimits as average from %s where  and clusterName = \"%s\" e", parentSchema, clusterName,filter), ALL, namespace,ALL, msServiceName));
+	  	    metricsList.add(new AppDMetricObj("MemoryRequests", parentSchema, CONFIG_SCHEMA_DEF_POD_RESOURCE_QUOTA,
+	  	            String.format("select MemoryLimits as average from %s where  and clusterName = \"%s\" e", parentSchema, clusterName,filter), rootPath, namespace,node, msServiceName));
 
-	    
+	  	    
 	    return metricsList;
 	}
 	
@@ -208,20 +244,29 @@ public class PodResourceQuotaSnapshotRunner  extends SnapshotRunnerBase {
 	    long batchSize = Long.parseLong(config.get(CONFIG_RECS_BATCH_SIZE));
 
 	    Map<String, MicroserviceData> microserviceDataMap = new HashMap<String, MicroserviceData>();
-	  
-		
+	    Map<String, V1Node> nodeObjectMap = new HashMap<String, V1Node>();
+
 	    for (V1Pod pod : pods.getItems()) {
 	        String serviceName = getDeploymentName(pod);
+	        V1Node nodeObject=null;
 	        if(!serviceName.isEmpty()) {
 		        String namespace = pod.getMetadata().getNamespace();
 		        MicroserviceData microserviceData = microserviceDataMap.get(serviceName);
-	
+		        
+		        String nodeName=pod.getSpec().getNodeName();
+		        if(nodeObjectMap.containsKey(apiKey))  {
+		        	nodeObject=nodeObjectMap.get(nodeName);
+		        }
+		        else{
+		        	nodeObject=getNodeforPod(config,pod.getSpec().getNodeName());
+		        	nodeObjectMap.put(nodeName, nodeObject);
+		        }
 		        if (microserviceData == null) {
 		            microserviceData = new MicroserviceData(serviceName,namespace);
 		            microserviceDataMap.put(serviceName, microserviceData);
 		        }
 		        ObjectNode labelsObject = Utilities.getResourceLabels(config, mapper, pod);
-	
+		     
 		        microserviceData.incrementPodCount();
 		        microserviceData.addCPURequest(getCPURequest(pod));
 		        microserviceData.addCPULimit(getCPULimit(pod));
@@ -229,9 +274,12 @@ public class PodResourceQuotaSnapshotRunner  extends SnapshotRunnerBase {
 		        microserviceData.addMemoryLimits(getMemoryLimits(pod));
 		        String clusterName = Utilities.ensureClusterName(config, pod.getMetadata().getClusterName());
 		        microserviceData.setClusterName(clusterName);
-		        microserviceData.labels=labelsObject;
+		        microserviceData.setLabels(labelsObject);
+		        microserviceData.setNodeObject(nodeObject);
 		    }
-	
+	    }
+	   
+
 		    for (Map.Entry<String, MicroserviceData> entry : microserviceDataMap.entrySet()) {
 		       
 		        MicroserviceData microserviceData = entry.getValue();
@@ -245,22 +293,43 @@ public class PodResourceQuotaSnapshotRunner  extends SnapshotRunnerBase {
 		        objectNode=checkAddFloat(objectNode, microserviceData.getAverageMemoryLimits(), "memoryLimits");
 		        
 		      
-		        objectNode=checkAddObject(objectNode, microserviceData.labels, "customLabels") ; 
-		        SummaryObj summary = getSummaryMap().get(ALL);
+		        objectNode=checkAddObject(objectNode, microserviceData.getLabels(), "customLabels") ; 
+		        SummaryObj summary = getSummaryMap().get(microserviceData.getServiceName());
 	            if (summary == null) {
 	                summary = updatePODResourceQuotaSummaryObject(config, ALL, ALL,microserviceData);
-	                getSummaryMap().put(ALL, summary);
+	                getSummaryMap().put(microserviceData.getServiceName(), summary);
 	            }
 	
-	            SummaryObj summaryNamespace = getSummaryMap().get(microserviceData.getServiceName());
-	          
-	                if (summaryNamespace == null) {
-	                    summaryNamespace = updatePODResourceQuotaSummaryObject(config, namespace, ALL,microserviceData);
-	                    getSummaryMap().put(namespace, summaryNamespace);
+	            SummaryObj summaryNamespace = getSummaryMap().get(namespace+"-"+microserviceData.getServiceName());
+	            if(Utilities.shouldCollectMetricsForNamespace(getConfiguration(),namespace)) {
+		                if (summaryNamespace == null) {
+		                    summaryNamespace = updatePODResourceQuotaSummaryObject(config, namespace, ALL,microserviceData);
+		                    getSummaryMap().put(namespace+"-"+microserviceData.getServiceName(), summaryNamespace);
+		                }
+	            }
+		        
+		        
+	            V1Node nodeObj = microserviceData.getNodeObject();
+	            String nodeNameKey=microserviceData.getServiceName()+"-"+nodeObj.getMetadata().getName();
+	            boolean isMaster = false;
+	            if (nodeObj.getMetadata().getLabels() != null) {
+	                Iterator it = nodeObj.getMetadata().getLabels().entrySet().iterator();
+	                while (it.hasNext()) {
+	                    Map.Entry pair = (Map.Entry) it.next();
+	                    if (!isMaster && pair.getKey().equals("node-role.kubernetes.io/master")) {
+	                        isMaster = true;
+	                    }
+	                    it.remove();
 	                }
-	           
-		        
-		        
+	            }
+
+	            SummaryObj summaryNode = getSummaryMap().get(nodeNameKey);
+	            if(Utilities.shouldCollectMetricsForNode(getConfiguration(), nodeObj.getMetadata().getName())) {
+	                if (summaryNode == null) {
+	                    summaryNode = updatePODResourceQuotaSummaryObject(config, microserviceData,nodeObj.getMetadata().getName(), isMaster ? Constants.MASTER_NODE : Constants.WORKER_NODE);
+	                    getSummaryMap().put(nodeNameKey, summaryNode);
+	                }
+	            }
 	
 	
 	
@@ -268,7 +337,7 @@ public class PodResourceQuotaSnapshotRunner  extends SnapshotRunnerBase {
 		    	   objectNode = checkAddObject(objectNode, OPENSHIFT_VERSION, "openShiftVersion");
 				
 		       }
-		        objectNode = checkAddObject(objectNode, microserviceData.getClusterName(), "clusterName");
+		        objectNode = checkAddObject(objectNode, microserviceData.getClusterName(), Constants.CLUSTER_NAME);
 		        arrayNode.add(objectNode);
 	
 		        if (arrayNode.size() >= batchSize) {
@@ -281,7 +350,7 @@ public class PodResourceQuotaSnapshotRunner  extends SnapshotRunnerBase {
 		            }
 		        }
 		    }
-	    }
+	    
 
 	    if (arrayNode.size() > 0) {
 	        logger.info("Sending last batch of {} Openshift POD Resource Quota records", arrayNode.size());
@@ -295,7 +364,55 @@ public class PodResourceQuotaSnapshotRunner  extends SnapshotRunnerBase {
 
 	    return arrayNode;
 	}
-	
+
+	private V1Node getNodeforPod(Map<String, String> config, String nodeName) {
+		
+		try {
+			ApiClient client = KubernetesClientSingleton.getInstance(config);
+			CoreV1Api api =KubernetesClientSingleton.getCoreV1ApiClient(config);
+		    this.setAPIServerTimeout(KubernetesClientSingleton.getInstance(config), K8S_API_TIMEOUT);
+            Configuration.setDefaultApiClient(client);
+            this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
+			return api.readNode(nodeName, null);
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return null;
+	}
+
+
+
+	public static void main(String[] args) throws Exception {
+		  V1PodList podList = null;
+			try {
+			ApiClient client =Config.defaultClient();
+	     //   this.setAPIServerTimeout(client, K8S_API_TIMEOUT);
+	        Configuration.setDefaultApiClient(client);
+	        CoreV1Api api = new CoreV1Api();
+	       // this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
+	         podList = api.listPodForAllNamespaces(null,
+	                null,
+	                null,
+	                null,
+	                null,
+	                null,
+	                null,
+	                null,
+	                null, null);
+	    }
+	    catch (Exception ex){
+	    		ex.printStackTrace();
+	    }
+        
+        for (V1Pod pod : podList.getItems()) {
+        	System.out.println("pod name"+pod.getSpec().getNodeName());
+        	   Map<String, String> nodeselector = pod.getSpec().getNodeSelector();
+   if(nodeselector!=null)
+        	   for (Map.Entry<String, String> entry : nodeselector.entrySet()) {
+        	   System.out.println(entry.getKey()+"- "+entry.getValue());
+        	   }
+        }
+	}
 	 private static String  getDeploymentName(V1Pod pod)  {
 	 // Get the metadata of the pod
 		try {
@@ -432,85 +549,7 @@ public class PodResourceQuotaSnapshotRunner  extends SnapshotRunnerBase {
 		    	   
 	    return memoryQuantity.getNumber().divide(BigDecimal.valueOf(1024 * 1024), 2, RoundingMode.HALF_UP).floatValue();
 	}
-	private static class MicroserviceData {
-	    public ObjectNode labels;
-		private String serviceName;
-	    private String clusterName;
-	    private int podCount;
-	    private float cpuRequestTotal;
-	    private float cpuLimitTotal;
-	    private float memoryRequestsTotal;
-	    private float memoryLimitsTotal;
-		private String namespace;
-
-	  
-
-		public MicroserviceData(String serviceName,String namespace) {
-	        this.serviceName = serviceName;
-	        this.namespace=namespace;
-	    }
-
-		
-		public String getNamespace() {
-			return namespace;
-		}
-
-		public void setNamespace(String namespace) {
-			this.namespace = namespace;
-		}
-		
-	    public String getServiceName() {
-	        return serviceName;
-	    }
-
-	    public int getPodCount() {
-	        return podCount;
-	    }
-
-	    public void incrementPodCount() {
-	        podCount++;
-	    }
-
-	    public void addCPURequest(float cpuRequest) {
-	        cpuRequestTotal += cpuRequest;
-	    }
-
-	    public void addCPULimit(float cpuLimit) {
-	        cpuLimitTotal += cpuLimit;
-	    }
-
-	    public void addMemoryRequests(float memoryRequests) {
-	        memoryRequestsTotal += memoryRequests;
-	    }
-
-	    public void addMemoryLimits(float memoryLimits) {
-	        memoryLimitsTotal += memoryLimits;
-	    }
-
-	    public float getAverageCPURequest() {
-	        return podCount > 0 ? cpuRequestTotal / podCount : 0;
-	    }
-
-	    public float getAverageCPULimit() {
-	        return podCount > 0 ? cpuLimitTotal / podCount : 0;
-	    }
-
-	    public float getAverageMemoryRequests() {
-	        return podCount > 0 ? memoryRequestsTotal / podCount : 0;
-	    }
-
-	    public float getAverageMemoryLimits() {
-	        return podCount > 0 ? memoryLimitsTotal / podCount : 0;
-	    }
-
-		public String getClusterName() {
-			return clusterName;
-		}
-
-		public void setClusterName(String clusterName) {
-			this.clusterName = clusterName;
-		}
-	}
+	
 
 	
 }

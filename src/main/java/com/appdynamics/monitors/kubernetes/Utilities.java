@@ -10,8 +10,6 @@ import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_EVENTS_URL;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_GLOBAL_ACCOUNT_NAME;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_NODE_NAMESPACES;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_NODE_NODES;
-import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_DEF_EVENT;
-import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_NAME_EVENT;
 import static com.appdynamics.monitors.kubernetes.Constants.DEFAULT_METRIC_PREFIX_NAME;
 import static com.appdynamics.monitors.kubernetes.Constants.METRIC_PATH_MICRO_SERVICES;
 import static com.appdynamics.monitors.kubernetes.Constants.METRIC_PATH_NAMESPACES;
@@ -19,6 +17,7 @@ import static com.appdynamics.monitors.kubernetes.Constants.METRIC_PATH_NODES;
 import static com.appdynamics.monitors.kubernetes.Constants.METRIC_SEPARATOR;
 
 import java.io.File;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -44,22 +43,12 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import io.fabric8.openshift.client.DefaultOpenShiftClient;
 import io.fabric8.openshift.client.OpenShiftClient;
-import io.kubernetes.client.common.KubernetesObject;
-import io.kubernetes.client.openapi.ApiClient;
-import io.kubernetes.client.openapi.Configuration;
-import io.kubernetes.client.openapi.apis.AppsV1Api;
-import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.models.CoreV1Event;
-import io.kubernetes.client.openapi.models.CoreV1EventList;
 import io.kubernetes.client.openapi.models.V1DaemonSet;
 import io.kubernetes.client.openapi.models.V1Deployment;
-import io.kubernetes.client.openapi.models.V1DeploymentList;
-import io.kubernetes.client.openapi.models.V1Endpoint;
-import io.kubernetes.client.openapi.models.V1EndpointsList;
 import io.kubernetes.client.openapi.models.V1Namespace;
 import io.kubernetes.client.openapi.models.V1Node;
 import io.kubernetes.client.openapi.models.V1Pod;
-import io.kubernetes.client.openapi.models.V1PodList;
 import io.kubernetes.client.openapi.models.V1ReplicaSet;
 import io.kubernetes.client.util.Config;
 
@@ -388,18 +377,38 @@ public class Utilities {
        
     }
     
+    public static String getMetricsPath(Map<String, String> config, String namespace,MicroserviceData microService){
+
+        
+        String str=String.format("%s%s%s%s%s%s%s%s%s", Utilities.getMetricsPath(config),METRIC_SEPARATOR,METRIC_PATH_NAMESPACES,METRIC_SEPARATOR,namespace, METRIC_SEPARATOR, METRIC_PATH_MICRO_SERVICES,METRIC_SEPARATOR,microService.getServiceName());
+        logger.info("getMetricsPath string is : {}",str);
+        return str;
+       
+    }
+    
+    
     public static String getMetricsPath(Map<String, String> config, String namespace, String node,String role){
         if(!node.equals(ALL)){
             return String.format("%s%s%s%s%s%s%s", Utilities.getMetricsPath(config), METRIC_SEPARATOR, METRIC_PATH_NODES, METRIC_SEPARATOR,role,METRIC_SEPARATOR, node);
         }
-        else if (!namespace.equals(ALL)){
-            return String.format("%s%s%s%s%s", Utilities.getMetricsPath(config), METRIC_SEPARATOR, METRIC_PATH_NAMESPACES, METRIC_SEPARATOR, namespace);
-        }
- 
+        
        
 
         return getMetricsPath(config);
     }
+    
+
+	public static String getMetricsPath(Map<String, String> config, String namespace, String node,
+			MicroserviceData microserviceData, String role) {
+		if(!node.equals(ALL)){
+            return String.format("%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s", Utilities.getMetricsPath(config), METRIC_SEPARATOR, METRIC_PATH_NODES, METRIC_SEPARATOR,role,METRIC_SEPARATOR, node,
+            		METRIC_SEPARATOR,METRIC_PATH_NAMESPACES,METRIC_SEPARATOR,namespace,METRIC_SEPARATOR,METRIC_PATH_MICRO_SERVICES,METRIC_SEPARATOR,microserviceData.getServiceName());
+        }
+        else if (!namespace.equals(ALL)){
+            return String.format("%s%s%s%s%s", Utilities.getMetricsPath(config), METRIC_SEPARATOR, METRIC_PATH_NODES, METRIC_SEPARATOR, METRIC_PATH_NODES);
+        }
+		return getMetricsPath(config);
+	}
 
 
     public static String ensureClusterName(Map<String, String> config, String clusterName){
@@ -552,7 +561,7 @@ public class Utilities {
              version = client.getOpenShiftV4Version();           
               logger.info("OpenShift Version is {}",version);    
          } catch (Exception e) {
-             logger.error("Exception when retrieving OpenShift version: {}", e.getMessage());
+             logger.error("Exception encountered while retrieving the OpenShift version. Please disregard this message if you are not working with OpenShift or a shiftcluster. Error message:{}", e.getMessage());
          }
 		return version;
     }
@@ -604,8 +613,7 @@ public class Utilities {
 	        }
 	       
 	     }
-        
-        return labelsObject;
+    	return labelsObject;
     }
     
 }

@@ -25,6 +25,7 @@ import java.util.concurrent.CountDownLatch;
 import com.appdynamics.extensions.TasksExecutionServiceProvider;
 import com.appdynamics.extensions.metrics.Metric;
 import com.appdynamics.extensions.util.AssertUtils;
+import com.appdynamics.monitors.kubernetes.KubernetesClientSingleton;
 import com.appdynamics.monitors.kubernetes.Utilities;
 import com.appdynamics.monitors.kubernetes.Metrics.UploadMetricsTask;
 import com.appdynamics.monitors.kubernetes.Models.AppDMetricObj;
@@ -73,10 +74,7 @@ public class PodSnapshotRunner extends SnapshotRunnerBase {
         generatePodSnapshot();
     }
 
-//    "request_cpu", "float",
-//            "request_memory", "float",
-//            "limit_cpu", "float",
-//            "limit_memory", "float",
+
 
     private void generatePodSnapshot(){
         logger.info("Proceeding to POD update...");
@@ -90,12 +88,12 @@ public class PodSnapshotRunner extends SnapshotRunnerBase {
                 V1PodList podList;
 
                 try {
-                    ApiClient client = Utilities.initClient(config);
-                    this.setAPIServerTimeout(client, K8S_API_TIMEOUT);
+        			ApiClient client = KubernetesClientSingleton.getInstance(config);
+        			CoreV1Api api =KubernetesClientSingleton.getCoreV1ApiClient(config);
+        		    this.setAPIServerTimeout(KubernetesClientSingleton.getInstance(config), K8S_API_TIMEOUT);
                     Configuration.setDefaultApiClient(client);
-                    CoreV1Api api = new CoreV1Api();
-
                     this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
+
                     podList = api.listPodForAllNamespaces(null,
                             null,
                             null,
@@ -119,13 +117,10 @@ public class PodSnapshotRunner extends SnapshotRunnerBase {
                 getConfiguration().getExecutorService().execute("UploadMetricsTask", podMetricsTask);
 
                 //check searches
-            } catch (IOException e) {
-                countDownLatch.countDown();
-                logger.error("Failed to push POD data", e);
             } catch (Exception e) {
                 countDownLatch.countDown();
                 logger.error("Failed to push POD data", e);
-            }
+            } 
         }
     }
 
@@ -142,11 +137,11 @@ public class PodSnapshotRunner extends SnapshotRunnerBase {
             String nodeName = podItem.getSpec().getNodeName();
 
             if (namespace == null || namespace.isEmpty()){
-                logger.info(String.format("Pod %s missing namespace attribution", podItem.getMetadata().getName()));
+                logger.info("Pod {} missing namespace attribution", podItem.getMetadata().getName());
             }
 
             if (nodeName == null || nodeName.isEmpty()){
-                logger.info(String.format("Pod %s missing node attribution", podItem.getMetadata().getName()));
+                logger.info("Pod {} missing node attribution", podItem.getMetadata().getName());
             }
 
             String clusterName = Utilities.ensureClusterName(config, podItem.getMetadata().getClusterName());
@@ -594,7 +589,6 @@ public class PodSnapshotRunner extends SnapshotRunnerBase {
         ObjectMapper mapper = new ObjectMapper();
         ObjectNode summary = mapper.createObjectNode();
         summary.put("namespace", namespace);
-        summary.put("nodename", node);
 
         summary.put("Pods", 0);
         summary.put("Evictions", 0);

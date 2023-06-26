@@ -207,25 +207,6 @@ public abstract class SnapshotRunnerBase implements AMonitorTaskRunnable {
         return metricList;
     }
     
-    public  List<Metric> getMetricsFromSummary(HashMap<String, SummaryObj> summaryMap, Map<String, String> config,Map<String,String> nodeRoleMap){
-        List<Metric> metricList = new ArrayList<Metric>();
-        ArrayList<SummaryObj> objList = getSummaryDataList(summaryMap, config);
-        for(SummaryObj summaryObj : objList){
-            JsonNode obj = summaryObj.getData();
-            Iterator<Map.Entry<String, JsonNode>> nodes = obj.fields();
-            while (nodes.hasNext()){
-                Map.Entry<String, JsonNode> entry = nodes.next();
-                String fieldName = entry.getKey();
-                if (!fieldName.equals("batch_ts") && !fieldName.equals("nodename") && !fieldName.equals("namespace")) {
-                    String path = String.format("%s%s%s", summaryObj.getPath(), METRIC_SEPARATOR, fieldName);
-                    String val = entry.getValue().asText();
-                    Metric m = new Metric(fieldName, val, path, "OBSERVATION", "CURRENT", "INDIVIDUAL");
-                    metricList.add(m);
-                }
-            }
-        }
-        return metricList;
-    }
 
     public  ArrayList getSummaryDataList(HashMap<String, SummaryObj> summaryMap, Map<String, String> config){
         ArrayList list = new ArrayList();

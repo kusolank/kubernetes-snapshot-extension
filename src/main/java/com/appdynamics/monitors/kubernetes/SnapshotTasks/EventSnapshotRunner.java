@@ -20,6 +20,7 @@ import com.appdynamics.extensions.TasksExecutionServiceProvider;
 import com.appdynamics.extensions.metrics.Metric;
 import com.appdynamics.extensions.util.AssertUtils;
 import com.appdynamics.monitors.kubernetes.Globals;
+import com.appdynamics.monitors.kubernetes.KubernetesClientSingleton;
 import com.appdynamics.monitors.kubernetes.Utilities;
 import com.appdynamics.monitors.kubernetes.Metrics.UploadMetricsTask;
 import com.appdynamics.monitors.kubernetes.Models.AppDMetricObj;
@@ -63,11 +64,11 @@ public class EventSnapshotRunner extends SnapshotRunnerBase {
             try {
                 CoreV1EventList eventList;
                 try {
-                    ApiClient client = Utilities.initClient(config);
-                    this.setAPIServerTimeout(client, K8S_API_TIMEOUT);
-                    Configuration.setDefaultApiClient(client);
-                    CoreV1Api api = new CoreV1Api();
-                    this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
+                	ApiClient client = KubernetesClientSingleton.getInstance(config);
+    				CoreV1Api api =KubernetesClientSingleton.getCoreV1ApiClient(config);
+    			    this.setAPIServerTimeout(KubernetesClientSingleton.getInstance(config), K8S_API_TIMEOUT);
+    	            Configuration.setDefaultApiClient(client);
+    	            this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
                     eventList = api.listEventForAllNamespaces(
                     		false, //allow Watch bookmarks
                     		null,  //_continue - relevant for pagination
@@ -110,7 +111,7 @@ public class EventSnapshotRunner extends SnapshotRunnerBase {
         long batchSize = Long.parseLong(config.get(CONFIG_RECS_BATCH_SIZE));
 
         for (CoreV1Event item : eventList.getItems()) {
-            if ( null == Globals.previousRunTimestamp || item.getLastTimestamp().isAfter(Globals.previousRunTimestamp)){
+            if ( null == Globals.previousRunTimestamp || (item.getLastTimestamp() !=null && item.getLastTimestamp().isAfter(Globals.previousRunTimestamp))){
                 if (!item.getMetadata().getUid().equals(Globals.previousRunSelfLink)){
 
                     boolean error = false;
@@ -246,7 +247,7 @@ public class EventSnapshotRunner extends SnapshotRunnerBase {
                     }
                 } else {
                    
-                    logger.error("Last timestamp is null and addding current timestamp for item: {}", item);
+                    logger.error("Last timestamp is null and addding current timestamp for item: {}", item.getKind());
                    
                     LocalDateTime localDateTime = LocalDateTime.now();
                     OffsetDateTime offsetDateTime = localDateTime.atOffset(ZoneOffset.systemDefault().getRules().getOffset(localDateTime));

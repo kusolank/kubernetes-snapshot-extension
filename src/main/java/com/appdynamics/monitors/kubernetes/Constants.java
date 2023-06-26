@@ -87,6 +87,7 @@ public class Constants {
     public static final String WORKER_NODE = "Worker";
     public static final String MASTER_NODE = "Master";
     public static String OPENSHIFT_VERSION="";
+	public static final String CLUSTER_NAME = "clusterName";
     
 
 }

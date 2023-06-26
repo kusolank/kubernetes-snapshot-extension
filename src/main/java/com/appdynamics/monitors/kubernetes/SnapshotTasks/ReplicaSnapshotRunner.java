@@ -19,6 +19,7 @@ import java.util.concurrent.CountDownLatch;
 import com.appdynamics.extensions.TasksExecutionServiceProvider;
 import com.appdynamics.extensions.metrics.Metric;
 import com.appdynamics.extensions.util.AssertUtils;
+import com.appdynamics.monitors.kubernetes.KubernetesClientSingleton;
 import com.appdynamics.monitors.kubernetes.Utilities;
 import com.appdynamics.monitors.kubernetes.Metrics.UploadMetricsTask;
 import com.appdynamics.monitors.kubernetes.Models.AppDMetricObj;
@@ -30,6 +31,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.Configuration;
 import io.kubernetes.client.openapi.apis.AppsV1Api;
+import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.models.V1ReplicaSet;
 import io.kubernetes.client.openapi.models.V1ReplicaSetList;
 
@@ -60,10 +62,11 @@ public class ReplicaSnapshotRunner extends SnapshotRunnerBase {
             try {
                 V1ReplicaSetList rsList;
                 try {
-                    ApiClient client = Utilities.initClient(config);
-                    this.setAPIServerTimeout(client, K8S_API_TIMEOUT);
+        			ApiClient client = KubernetesClientSingleton.getInstance(config);
+        			AppsV1Api api =KubernetesClientSingleton.getAppsV1ApiClient(config);
+        		    this.setAPIServerTimeout(KubernetesClientSingleton.getInstance(config), K8S_API_TIMEOUT);
                     Configuration.setDefaultApiClient(client);
-                    AppsV1Api api = new AppsV1Api();
+                 
                     
                     rsList = api.listReplicaSetForAllNamespaces(
                     		false, 

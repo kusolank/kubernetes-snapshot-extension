@@ -19,6 +19,7 @@ import java.util.concurrent.CountDownLatch;
 import com.appdynamics.extensions.TasksExecutionServiceProvider;
 import com.appdynamics.extensions.metrics.Metric;
 import com.appdynamics.extensions.util.AssertUtils;
+import com.appdynamics.monitors.kubernetes.KubernetesClientSingleton;
 import com.appdynamics.monitors.kubernetes.Utilities;
 import com.appdynamics.monitors.kubernetes.Metrics.UploadMetricsTask;
 import com.appdynamics.monitors.kubernetes.Models.AppDMetricObj;
@@ -65,11 +66,11 @@ public class EndpointSnapshotRunner extends SnapshotRunnerBase {
                 V1EndpointsList epList;
                 try {
 
-                    ApiClient client = Utilities.initClient(config);
-                    this.setAPIServerTimeout(client, K8S_API_TIMEOUT);
-                    Configuration.setDefaultApiClient(client);
-                    CoreV1Api api = new CoreV1Api();
-                    this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
+                	ApiClient client = KubernetesClientSingleton.getInstance(config);
+    				CoreV1Api api =KubernetesClientSingleton.getCoreV1ApiClient(config);
+    			    this.setAPIServerTimeout(KubernetesClientSingleton.getInstance(config), K8S_API_TIMEOUT);
+    	            Configuration.setDefaultApiClient(client);
+    	            this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
 
                     epList = api.listEndpointsForAllNamespaces(
                     		false, //allow Watch bookmarks

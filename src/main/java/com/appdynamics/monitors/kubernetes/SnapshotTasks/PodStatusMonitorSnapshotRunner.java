@@ -1,9 +1,7 @@
 package com.appdynamics.monitors.kubernetes.SnapshotTasks;
 
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_RECS_BATCH_SIZE;
-import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_DEF_NODE;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_DEF_POD_STATUS_MONITOR;
-import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_NAME_NODE;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_NAME_POD_STATUS_MONITOR;
 import static com.appdynamics.monitors.kubernetes.Constants.OPENSHIFT_VERSION;
 import static com.appdynamics.monitors.kubernetes.Utilities.ALL;
@@ -24,6 +22,7 @@ import com.appdynamics.extensions.metrics.Metric;
 import com.appdynamics.extensions.util.AssertUtils;
 import com.appdynamics.monitors.kubernetes.Constants;
 import com.appdynamics.monitors.kubernetes.Globals;
+import com.appdynamics.monitors.kubernetes.KubernetesClientSingleton;
 import com.appdynamics.monitors.kubernetes.Utilities;
 import com.appdynamics.monitors.kubernetes.Metrics.UploadMetricsTask;
 import com.appdynamics.monitors.kubernetes.Models.AppDMetricObj;
@@ -33,7 +32,6 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import io.kubernetes.client.openapi.ApiClient;
-import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.Configuration;
 import io.kubernetes.client.openapi.apis.AppsV1Api;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
@@ -47,7 +45,6 @@ import io.kubernetes.client.openapi.models.V1Pod;
 import io.kubernetes.client.openapi.models.V1PodCondition;
 import io.kubernetes.client.openapi.models.V1PodList;
 import io.kubernetes.client.openapi.models.V1ReplicaSet;
-import io.kubernetes.client.util.Config;
 
 
 public class PodStatusMonitorSnapshotRunner extends SnapshotRunnerBase {
@@ -106,13 +103,14 @@ public class PodStatusMonitorSnapshotRunner extends SnapshotRunnerBase {
 	public int getNotRunningPodCount(String nodeName, Map<String, String> config) throws Exception {
 	    int count = 0;
 	    try {
-	        ApiClient client = Utilities.initClient(config);
-	        this.setAPIServerTimeout(client, K8S_API_TIMEOUT);
-	        Configuration.setDefaultApiClient(client);
-	        CoreV1Api coreV1Api = new CoreV1Api(client);
+			ApiClient client = KubernetesClientSingleton.getInstance(config);
+			CoreV1Api api =KubernetesClientSingleton.getCoreV1ApiClient(config);
+		    this.setAPIServerTimeout(KubernetesClientSingleton.getInstance(config), K8S_API_TIMEOUT);
+            Configuration.setDefaultApiClient(client);
+            this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
 	       
 	        String podPhase = "Running";
-	        V1PodList podList = coreV1Api.listPodForAllNamespaces(null, null, null, null, null, null, null, null, null, null);
+	        V1PodList podList = api.listPodForAllNamespaces(null, null, null, null, null, null, null, null, null, null);
 
 	        for (V1Pod pod : podList.getItems()) {
 	            if (!pod.getStatus().getPhase().equalsIgnoreCase(podPhase)) {
@@ -145,7 +143,7 @@ public class PodStatusMonitorSnapshotRunner extends SnapshotRunnerBase {
            objectNode = checkAddObject(objectNode, pod.getMetadata().getNamespace(), "namespace");
             
             objectNode = checkAddObject(objectNode, getContainerName(pod), "containerName");
-            objectNode = checkAddObject(objectNode, getDeploymentName(pod), "deploymentName");
+            objectNode = checkAddObject(objectNode, getDeploymentName(pod,config), "deploymentName");
             objectNode = checkAddObject(objectNode, pod.getMetadata().getName(), "podName");
             objectNode = checkAddObject(objectNode, getErrorReason(pod), "errorReason");
             objectNode = checkAddObject(objectNode, getContainerPhase(pod), "containerPhase");
@@ -270,7 +268,7 @@ public class PodStatusMonitorSnapshotRunner extends SnapshotRunnerBase {
 	    return containerNames;
 	}
 
-	private String getDeploymentName(V1Pod pod) throws ApiException {
+	private String getDeploymentName(V1Pod pod, Map<String, String> config) throws Exception {
 		 // Get the metadata of the pod
         V1ObjectMeta metadata = pod.getMetadata();
 
@@ -279,7 +277,11 @@ public class PodStatusMonitorSnapshotRunner extends SnapshotRunnerBase {
         
 
 
-        AppsV1Api appsApi = new AppsV1Api();
+		ApiClient client = KubernetesClientSingleton.getInstance(config);
+		AppsV1Api api =KubernetesClientSingleton.getAppsV1ApiClient(config);
+	    this.setAPIServerTimeout(KubernetesClientSingleton.getInstance(config), K8S_API_TIMEOUT);
+        Configuration.setDefaultApiClient(client);
+       
         
         // Find the owner reference with the "ReplicaSet" kind
         V1OwnerReference replicaSetReference = null;
@@ -295,7 +297,7 @@ public class PodStatusMonitorSnapshotRunner extends SnapshotRunnerBase {
                 String replicaSetName = replicaSetReference.getName();
 
                 // Get the ReplicaSet object
-                V1ReplicaSet replicaSet = appsApi.readNamespacedReplicaSet(replicaSetName,pod.getMetadata().getNamespace(), null);
+                V1ReplicaSet replicaSet = api.readNamespacedReplicaSet(replicaSetName,pod.getMetadata().getNamespace(), null);
 
                 // Get the owner references from the ReplicaSet's metadata
                 List<V1OwnerReference> rsOwnerReferences = replicaSet.getMetadata().getOwnerReferences();
@@ -354,10 +356,11 @@ public class PodStatusMonitorSnapshotRunner extends SnapshotRunnerBase {
 	
 	private List<V1Pod> getPods(Map<String, String> config) throws Exception {
 		V1PodList podList;
-		ApiClient client = Utilities.initClient(config);
-         this.setAPIServerTimeout(client, K8S_API_TIMEOUT);
-         Configuration.setDefaultApiClient(client);
-         CoreV1Api api = new CoreV1Api();
+		ApiClient client = KubernetesClientSingleton.getInstance(config);
+		CoreV1Api api =KubernetesClientSingleton.getCoreV1ApiClient(config);
+	    this.setAPIServerTimeout(KubernetesClientSingleton.getInstance(config), K8S_API_TIMEOUT);
+        Configuration.setDefaultApiClient(client);
+        this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
 
          this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
          podList = api.listPodForAllNamespaces(null,
@@ -375,12 +378,12 @@ public class PodStatusMonitorSnapshotRunner extends SnapshotRunnerBase {
 
 
 	private V1Node getNode(Map<String, String> config,String nodeName) throws Exception {
-		V1PodList podList;
-		ApiClient client = Utilities.initClient(config);
-         this.setAPIServerTimeout(client, K8S_API_TIMEOUT);
-         Configuration.setDefaultApiClient(client);
-         CoreV1Api api = new CoreV1Api();
 
+		ApiClient client = KubernetesClientSingleton.getInstance(config);
+		CoreV1Api api =KubernetesClientSingleton.getCoreV1ApiClient(config);
+	    this.setAPIServerTimeout(KubernetesClientSingleton.getInstance(config), K8S_API_TIMEOUT);
+        Configuration.setDefaultApiClient(client);
+        this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
          V1Node node = api.readNode(nodeName, null);
          
 	    return node;
@@ -395,11 +398,11 @@ public class PodStatusMonitorSnapshotRunner extends SnapshotRunnerBase {
 		  V1NodeList nodeList;
 
 		try {
-		ApiClient client = Utilities.initClient(config);
-        this.setAPIServerTimeout(client, K8S_API_TIMEOUT);
-        Configuration.setDefaultApiClient(client);
-        CoreV1Api api = new CoreV1Api();
-        this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
+			ApiClient client = KubernetesClientSingleton.getInstance(config);
+			CoreV1Api api =KubernetesClientSingleton.getCoreV1ApiClient(config);
+		    this.setAPIServerTimeout(KubernetesClientSingleton.getInstance(config), K8S_API_TIMEOUT);
+            Configuration.setDefaultApiClient(client);
+            this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
          nodeList = api.listNode(null,
                  false,
                  null,

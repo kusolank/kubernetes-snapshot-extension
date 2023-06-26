@@ -19,6 +19,7 @@ import java.util.concurrent.CountDownLatch;
 import com.appdynamics.extensions.TasksExecutionServiceProvider;
 import com.appdynamics.extensions.metrics.Metric;
 import com.appdynamics.extensions.util.AssertUtils;
+import com.appdynamics.monitors.kubernetes.KubernetesClientSingleton;
 import com.appdynamics.monitors.kubernetes.Utilities;
 import com.appdynamics.monitors.kubernetes.Metrics.UploadMetricsTask;
 import com.appdynamics.monitors.kubernetes.Models.AppDMetricObj;
@@ -64,13 +65,10 @@ public class DeploymentSnapshotRunner extends SnapshotRunnerBase {
 
                 try {
 
-                    ApiClient client = Utilities.initClient(config);
+                    ApiClient client = KubernetesClientSingleton.getInstance(config);
                     this.setAPIServerTimeout(client, K8S_API_TIMEOUT);
                     Configuration.setDefaultApiClient(client);
-//                    ExtensionsV1beta1Api api = new ExtensionsV1beta1Api();
-//                    this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
-                    
-                    AppsV1Api api = new AppsV1Api();
+                    AppsV1Api api = KubernetesClientSingleton.getAppsV1ApiClient(config);
                     deployList =
                             api.listDeploymentForAllNamespaces(
                             		false, //allow Watch bookmarks
