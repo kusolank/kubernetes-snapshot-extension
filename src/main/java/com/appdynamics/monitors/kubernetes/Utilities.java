@@ -41,6 +41,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
+import io.fabric8.kubernetes.client.ConfigBuilder;
+import io.fabric8.kubernetes.client.DefaultKubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.VersionInfo;
 import io.fabric8.openshift.client.DefaultOpenShiftClient;
 import io.fabric8.openshift.client.OpenShiftClient;
 import io.kubernetes.client.openapi.models.CoreV1Event;
@@ -120,26 +124,50 @@ public class Utilities {
         }
         return should;
     }
+	
+
+	public static void main(String[] args) throws IOException {
+		System.out.println(getKubernetesVersion());
+	}
+	
+
+	private static String addAdditionalVersionFields(String oldSchemaDefinition) {
+		
+		try {
+		ObjectMapper objectMapper = new ObjectMapper();
+		JsonNode jsonNode = objectMapper.readTree(oldSchemaDefinition);
+		JsonNode schemaJson =jsonNode.get("schema");
+		ObjectNode schemaJsonObject = (ObjectNode) schemaJson;
+		if(Constants.OPENSHIFT_VERSION!=null && !Constants.OPENSHIFT_VERSION.isEmpty())
+        {
+			((ObjectNode) schemaJsonObject).put("openshiftVersion", "string");
+        }
+		if(Constants.K8S_VERSION!=null && !Constants.K8S_VERSION.isEmpty())
+        {	
+			((ObjectNode) schemaJsonObject).put("kubernetesVersion", "string");
+        }
+		
+			return  objectMapper.writeValueAsString(jsonNode);
+		}catch(IOException e)
+		{
+			logger.error("error while adding the openShiftVersion version field to schema, returning default schema");
+			return oldSchemaDefinition;
+		}
+	}
 
     public static URL ensureSchema(Map<String, String> config, String apiKey, String accountName, String schemaName, String schemaDefinition){
         URL publishUrl = Utilities.getUrl(getEventsAPIUrl(config) + "/events/publish/" + config.get(schemaName));
         URL schemaUrl = Utilities.getUrl(getEventsAPIUrl(config) + "/events/schema/" + config.get(schemaName));
-        String requestBody = config.get(schemaDefinition);
-//        ObjectNode existingSchema = null;
-//        try {
-//            existingSchema = (ObjectNode) new ObjectMapper().readTree(requestBody);
-//        }
-//        catch (IOException ioEX){
-//            logger.error("Unable to determine the latest Pod schema", ioEX);
-//        }
-
+        String requestBody = addAdditionalVersionFields(config.get(schemaDefinition));
+        
+        
         JsonNode serverSchema = RestClient.doRequest(schemaUrl, config,accountName, apiKey, "", "GET");
         logger.info("serverSchema{} ,  Schema Url {}", serverSchema, schemaUrl);
         int statusCode=0;
         String code="";
         if (serverSchema.has("statusCode")) {
       		statusCode = serverSchema.get("statusCode").asInt();
-            code = serverSchema.get("code").asText();
+               code = serverSchema.get("code").asText();
         }
        
         if(statusCode == 404 && code.equals("Missing.EventType")){
@@ -150,20 +178,6 @@ public class Utilities {
         }
         else {
             logger.info("Schema exists");
-//            if (existingSchema != null) {
-//                logger.info("Existing schema is not empty");
-//                ArrayNode updated = Utilities.checkSchemaForUpdates(serverSchema, existingSchema);
-//                if (updated != null) {
-//                    //update schema changes
-//                    logger.info("Schema changed, updating", schemaUrl);
-//                      logger.debug("New schema fields: {}", updated.toString());
-
-//                    RestClient.doRequest(schemaUrl, accountName, apiKey, updated.toString(), "PATCH");
-//                }
-//                else {
-//                    logger.info("Nothing to update");
-//                }
-//            }
         }
         return publishUrl;
     }
@@ -373,7 +387,9 @@ public class Utilities {
         	 return getMetricsPath(config);
             
         }
-        return String.format("%s%s%s%s%s", Utilities.getMetricsPath(config), METRIC_SEPARATOR, METRIC_PATH_MICRO_SERVICES, METRIC_SEPARATOR, microService);
+        String str=String.format("%s%s%s%s%s", Utilities.getMetricsPath(config), METRIC_SEPARATOR, METRIC_PATH_MICRO_SERVICES, METRIC_SEPARATOR, microService);
+        logger.info("getMetricsPath string is : {}",str);
+        return str;
        
     }
     
@@ -553,7 +569,7 @@ public class Utilities {
         return  url;
     }
 
-    
+
     public static String getOpenShiftVersion() {
     	String version=""; 
     	try (OpenShiftClient client = new DefaultOpenShiftClient()) {
@@ -565,7 +581,23 @@ public class Utilities {
          }
 		return version;
     }
+
+    private static io.fabric8.kubernetes.client.Config buildConfig() {
+        return new ConfigBuilder().build();
+    }
    
+    public static String getKubernetesVersion() {
+    	   String kubernetesVersion="";
+		 try (KubernetesClient client = new DefaultKubernetesClient(buildConfig())) {
+		     VersionInfo versionInfo = client.getVersion();
+		
+		     kubernetesVersion= versionInfo.getGitVersion();
+		    
+		 }
+		return kubernetesVersion;
+		          
+    }
+    
     
     public static List<String>  getCustomTags(Map<String, String> config) {
 	

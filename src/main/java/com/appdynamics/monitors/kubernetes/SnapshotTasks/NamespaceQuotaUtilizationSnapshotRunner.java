@@ -3,6 +3,7 @@ package com.appdynamics.monitors.kubernetes.SnapshotTasks;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_RECS_BATCH_SIZE;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_DEF_NAMESPACE_QUOTA_UTILIZATION;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_NAME_NAMESPACE_QUOTA_UTILIZATION;
+import static com.appdynamics.monitors.kubernetes.Constants.K8S_VERSION;
 import static com.appdynamics.monitors.kubernetes.Constants.OPENSHIFT_VERSION;
 import static com.appdynamics.monitors.kubernetes.Utilities.ALL;
 import static com.appdynamics.monitors.kubernetes.Utilities.checkAddFloat;
@@ -21,7 +22,6 @@ import java.util.concurrent.CountDownLatch;
 import com.appdynamics.extensions.TasksExecutionServiceProvider;
 import com.appdynamics.extensions.metrics.Metric;
 import com.appdynamics.extensions.util.AssertUtils;
-import com.appdynamics.monitors.kubernetes.Constants;
 import com.appdynamics.monitors.kubernetes.KubernetesClientSingleton;
 import com.appdynamics.monitors.kubernetes.Utilities;
 import com.appdynamics.monitors.kubernetes.Metrics.UploadMetricsTask;
@@ -175,9 +175,13 @@ public class NamespaceQuotaUtilizationSnapshotRunner  extends SnapshotRunnerBase
 	        
 	        Map<String, Float> metrics= collectNamespaceMetrics( namespace);
 	        if(!OPENSHIFT_VERSION.isEmpty()) {
-	        	objectNode = checkAddObject(objectNode,OPENSHIFT_VERSION, "openshiftPlatform");
-	        	
+	        	objectNode = checkAddObject(objectNode,OPENSHIFT_VERSION, "openshiftVersion");	        	
 	        }
+	        
+	        if(!K8S_VERSION.isEmpty()) {
+	        	objectNode = checkAddObject(objectNode,K8S_VERSION, "kubernetesVersion");	        	
+	        }
+	        
 	        objectNode = checkAddObject(objectNode,namespaceObj.getMetadata().getName(), "namespace");
 	        objectNode = checkAddFloat(objectNode,metrics.get("CpuRequestUsed"), "cpuRequestUsed");
 	        objectNode = checkAddFloat(objectNode,metrics.get("CpuRequestTotal"), "cpuRequestTotal");

@@ -93,6 +93,7 @@ public class KubernetesSnapshotExtension extends ABaseMonitor {
             long start = new Date().getTime();
             logger.info("Taking cluster snapshot");
             Constants.OPENSHIFT_VERSION= Utilities.getOpenShiftVersion();
+            Constants.K8S_VERSION= Utilities.getKubernetesVersion();
             Map<String, String> config = (Map<String, String>)configuration.getConfigYml();
             //populate Tier ID and cache of searched
             if (initClusterMonitoring(config)) {

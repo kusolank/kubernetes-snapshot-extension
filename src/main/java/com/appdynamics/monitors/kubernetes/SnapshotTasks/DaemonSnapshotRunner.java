@@ -3,6 +3,8 @@ package com.appdynamics.monitors.kubernetes.SnapshotTasks;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_RECS_BATCH_SIZE;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_DEF_DAEMON;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_NAME_DAEMON;
+import static com.appdynamics.monitors.kubernetes.Constants.K8S_VERSION;
+import static com.appdynamics.monitors.kubernetes.Constants.OPENSHIFT_VERSION;
 import static com.appdynamics.monitors.kubernetes.Utilities.ALL;
 import static com.appdynamics.monitors.kubernetes.Utilities.checkAddInt;
 import static com.appdynamics.monitors.kubernetes.Utilities.checkAddObject;
@@ -125,7 +127,12 @@ public class DaemonSnapshotRunner extends SnapshotRunnerBase{
                     getSummaryMap().put(namespace, summaryNamespace);
                 }
             }
-
+            if(!OPENSHIFT_VERSION.isEmpty()) {
+	        	deployObject = checkAddObject(deployObject,OPENSHIFT_VERSION, "openshiftVersion");
+	        }
+	        if(!K8S_VERSION.isEmpty()) {
+	        	deployObject = checkAddObject(deployObject,K8S_VERSION, "kubernetesVersion");	        	
+	        }
             ObjectNode labelsObject = Utilities.getResourceLabels(config,mapper, deployItem);
             deployObject=checkAddObject(deployObject, labelsObject, "customLabels") ;  
 

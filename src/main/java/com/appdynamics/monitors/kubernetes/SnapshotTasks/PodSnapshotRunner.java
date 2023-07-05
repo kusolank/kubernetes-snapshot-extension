@@ -3,6 +3,7 @@ package com.appdynamics.monitors.kubernetes.SnapshotTasks;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_RECS_BATCH_SIZE;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_DEF_POD;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_NAME_POD;
+import static com.appdynamics.monitors.kubernetes.Constants.K8S_VERSION;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_CUSTOM_TAGS;
 import static com.appdynamics.monitors.kubernetes.Constants.OPENSHIFT_VERSION;
 import static com.appdynamics.monitors.kubernetes.Utilities.ALL;
@@ -498,9 +499,11 @@ public class PodSnapshotRunner extends SnapshotRunnerBase {
             
             podObject = checkAddObject(podObject, getDeploymentName(podItem), "deploymentName");
             if(!OPENSHIFT_VERSION.isEmpty()) {
-            	podObject = checkAddObject(podObject,OPENSHIFT_VERSION,"openShiftVersion");
+            	podObject = checkAddObject(podObject,OPENSHIFT_VERSION,"openshiftVersion");
             }
-           
+            if(!K8S_VERSION.isEmpty()) {
+	        	podObject = checkAddObject(podObject,K8S_VERSION, "kubernetesVersion");	        	
+	        }
             arrayNode.add(podObject);
             if (arrayNode.size() >= batchSize){
                 logger.info("Sending batch of {} Pod records", arrayNode.size());

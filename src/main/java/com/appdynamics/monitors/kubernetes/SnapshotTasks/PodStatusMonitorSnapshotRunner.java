@@ -3,6 +3,7 @@ package com.appdynamics.monitors.kubernetes.SnapshotTasks;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_RECS_BATCH_SIZE;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_DEF_POD_STATUS_MONITOR;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_NAME_POD_STATUS_MONITOR;
+import static com.appdynamics.monitors.kubernetes.Constants.K8S_VERSION;
 import static com.appdynamics.monitors.kubernetes.Constants.OPENSHIFT_VERSION;
 import static com.appdynamics.monitors.kubernetes.Utilities.ALL;
 import static com.appdynamics.monitors.kubernetes.Utilities.checkAddInt;
@@ -133,10 +134,12 @@ public class PodStatusMonitorSnapshotRunner extends SnapshotRunnerBase {
     
         for (V1Pod pod : pods) {
         	ObjectNode objectNode = mapper.createObjectNode();
-  	      if(!OPENSHIFT_VERSION.isEmpty()) {
-              	objectNode = checkAddObject(objectNode,OPENSHIFT_VERSION, "openshiftVersion");
-              }
-           
+  	      	if(!OPENSHIFT_VERSION.isEmpty()) {
+              	  objectNode = checkAddObject(objectNode,OPENSHIFT_VERSION, "openshiftVersion");
+               }
+  	       if(!K8S_VERSION.isEmpty()) {
+        	  objectNode = checkAddObject(objectNode,K8S_VERSION, "kubernetesVersion");	        	
+	        }
              
            objectNode = checkAddObject(objectNode,pod.getSpec().getNodeName(), "nodeName");
            

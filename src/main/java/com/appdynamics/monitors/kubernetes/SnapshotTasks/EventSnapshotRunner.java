@@ -3,6 +3,8 @@ package com.appdynamics.monitors.kubernetes.SnapshotTasks;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_RECS_BATCH_SIZE;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_DEF_EVENT;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_NAME_EVENT;
+import static com.appdynamics.monitors.kubernetes.Constants.K8S_VERSION;
+import static com.appdynamics.monitors.kubernetes.Constants.OPENSHIFT_VERSION;
 import static com.appdynamics.monitors.kubernetes.Utilities.ALL;
 import static com.appdynamics.monitors.kubernetes.Utilities.checkAddObject;
 
@@ -136,7 +138,12 @@ public class EventSnapshotRunner extends SnapshotRunnerBase {
                         }
                     }
 
-
+                    if(!OPENSHIFT_VERSION.isEmpty()) {
+        	        	objectNode = checkAddObject(objectNode,OPENSHIFT_VERSION, "openshiftVersion");
+        	        }
+        	        if(!K8S_VERSION.isEmpty()) {
+        	        	objectNode = checkAddObject(objectNode,K8S_VERSION, "kubernetesVersion");	        	
+        	        }
                     objectNode = checkAddObject(objectNode, item.getFirstTimestamp(), "firstTimestamp");
                     objectNode = checkAddObject(objectNode, item.getMetadata().getAnnotations(), "annotations");
                     objectNode = checkAddObject(objectNode, item.getLastTimestamp(), "lastTimestamp");

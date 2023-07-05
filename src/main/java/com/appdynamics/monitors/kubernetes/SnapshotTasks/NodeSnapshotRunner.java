@@ -3,6 +3,7 @@ package com.appdynamics.monitors.kubernetes.SnapshotTasks;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_RECS_BATCH_SIZE;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_DEF_NODE;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_NAME_NODE;
+import static com.appdynamics.monitors.kubernetes.Constants.K8S_VERSION;
 import static com.appdynamics.monitors.kubernetes.Constants.OPENSHIFT_VERSION;
 import static com.appdynamics.monitors.kubernetes.Utilities.ALL;
 import static com.appdynamics.monitors.kubernetes.Utilities.checkAddFloat;
@@ -169,8 +170,12 @@ public class NodeSnapshotRunner extends SnapshotRunnerBase {
 			
             
             if(OPENSHIFT_VERSION.isEmpty()) {
-            	nodeObject = checkAddObject(nodeObject,OPENSHIFT_VERSION,"openShiftVersion");
+            	nodeObject = checkAddObject(nodeObject,OPENSHIFT_VERSION,"openshiftVersion");
             }
+            if(!K8S_VERSION.isEmpty()) {
+	        	nodeObject = checkAddObject(nodeObject,K8S_VERSION, "kubernetesVersion");	        	
+	        }
+            
 //            nodeObject = checkAddObject(nodeObject, isMaster ? Constants.MASTER_NODE : Constants.WORKER_NODE + Constants.METRIC_SEPARATOR + nodeName, "nodeName");
             nodeObject = checkAddObject(nodeObject, clusterName, "clusterName");
             nodeObject = checkAddObject(nodeObject, nodeObj.getSpec().getPodCIDR(), "podCIDR");

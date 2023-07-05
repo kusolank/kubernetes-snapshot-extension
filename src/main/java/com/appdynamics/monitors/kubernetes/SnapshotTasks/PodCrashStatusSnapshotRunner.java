@@ -3,6 +3,7 @@ package com.appdynamics.monitors.kubernetes.SnapshotTasks;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_RECS_BATCH_SIZE;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_DEF_POD_CRASH_STATUS;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_NAME_POD_CRASH_STATUS;
+import static com.appdynamics.monitors.kubernetes.Constants.K8S_VERSION;
 import static com.appdynamics.monitors.kubernetes.Constants.OPENSHIFT_VERSION;
 import static com.appdynamics.monitors.kubernetes.Utilities.ALL;
 import static com.appdynamics.monitors.kubernetes.Utilities.checkAddInt;
@@ -210,9 +211,12 @@ public class PodCrashStatusSnapshotRunner extends SnapshotRunnerBase {
 	        String namespace = pod.getMetadata().getNamespace();
 	        objectNode = checkAddObject(objectNode, namespace, "namespace");
 
-		      if(OPENSHIFT_VERSION.isEmpty()) {
-					objectNode = checkAddObject(objectNode, OPENSHIFT_VERSION, "openshiftVersion");
-		      }
+		  if(OPENSHIFT_VERSION.isEmpty()) {
+				objectNode = checkAddObject(objectNode, OPENSHIFT_VERSION, "openshiftVersion");
+		  }
+		  if(!K8S_VERSION.isEmpty()) {
+		    	objectNode = checkAddObject(objectNode,K8S_VERSION, "kubernetesVersion");	        	
+		  }
 	        objectNode = checkAddObject(objectNode, getNodeName(pod), "nodeName");
 
             String clusterName = Utilities.ensureClusterName(config, pod.getMetadata().getClusterName());

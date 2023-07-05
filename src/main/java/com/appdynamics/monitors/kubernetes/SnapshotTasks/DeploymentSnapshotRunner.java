@@ -3,6 +3,8 @@ package com.appdynamics.monitors.kubernetes.SnapshotTasks;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_RECS_BATCH_SIZE;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_DEF_DEPLOY;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_NAME_DEPLOY;
+import static com.appdynamics.monitors.kubernetes.Constants.K8S_VERSION;
+import static com.appdynamics.monitors.kubernetes.Constants.OPENSHIFT_VERSION;
 import static com.appdynamics.monitors.kubernetes.Utilities.ALL;
 import static com.appdynamics.monitors.kubernetes.Utilities.checkAddInt;
 import static com.appdynamics.monitors.kubernetes.Utilities.checkAddObject;
@@ -133,7 +135,12 @@ public class DeploymentSnapshotRunner extends SnapshotRunnerBase {
 
             incrementField(summary, "Deployments");
             incrementField(summaryNamespace, "Deployments");
-
+            if(!OPENSHIFT_VERSION.isEmpty()) {
+	        	deployObject = checkAddObject(deployObject,OPENSHIFT_VERSION, "openshiftVersion");
+	        }
+	        if(!K8S_VERSION.isEmpty()) {
+	        	deployObject = checkAddObject(deployObject,K8S_VERSION, "kubernetesVersion");	        	
+	        }
             deployObject = checkAddObject(deployObject, deployItem.getMetadata().getUid(), "object_uid");
             deployObject = checkAddObject(deployObject, clusterName, "clusterName");
             deployObject = checkAddObject(deployObject, deployItem.getMetadata().getCreationTimestamp(), "creationTimestamp");
@@ -173,7 +180,6 @@ public class DeploymentSnapshotRunner extends SnapshotRunnerBase {
             int replicas = deployItem.getSpec().getReplicas();
             deployObject = checkAddInt(deployObject, deployItem.getSpec().getReplicas(), "replicas");
 
-//            deployObject = checkAddObject(deployObject, deployItem.getSpec().getSelector().getMatchLabels().toString(), "labels");
 
             incrementField(summary, "DeployReplicas", replicas);
             incrementField(summaryNamespace, "DeployReplicas", replicas);

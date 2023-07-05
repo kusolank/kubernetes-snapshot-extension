@@ -106,7 +106,6 @@ eventsUrl: "https://analytics.api.appdynamics.com"  # EVENTS_API_URL env var
 podsSchemaDefinition: '{
    "schema" : {
       "object_uid": "string",
-      "openShiftVersion": "string",
       "customLabels": "string",
       "clusterName": "string",
       "deploymentName": "string",
@@ -160,7 +159,6 @@ podsSchemaDefinition: '{
 nodeSchemaDefinition: '{
   "schema" : {
       "nodeName": "string",
-      "openShiftVersion": "string",
       "customLabels": "string",
       "clusterName": "string",
       "podCIDR": "string",
@@ -194,7 +192,6 @@ nodeSchemaDefinition: '{
 eventsSchemaDefinition: '{
    "schema" : {
       "firstTimestamp": "date",
-      "openShiftVersion": "string",
       "customLabels": "string",
       "object_kind": "string",
       "object_name": "string",
@@ -230,7 +227,6 @@ deploySchemaDefinition: '{
   "schema": {
     "clusterName": "string",
     "name": "string",
-    "openShiftVersion": "string",
     "customLabels": "string",
     "namespace": "string",
     "object_uid": "string",
@@ -256,7 +252,6 @@ deploySchemaDefinition: '{
 daemonSchemaDefinition: '{
   "schema": {
     "clusterName": "string",
-    "openShiftVersion": "string",
     "name": "string",
     "customLabels": "string",
     "namespace": "string",
@@ -280,7 +275,6 @@ daemonSchemaDefinition: '{
 rsSchemaDefinition: '{
   "schema": {
     "clusterName": "string",
-    "openShiftVersion": "string",
     "name": "string",
     "namespace": "string",
     "customLabels": "string",
@@ -300,7 +294,6 @@ endpointSchemaDefinition: '{
   "schema": {
     "name": "string",
     "clusterName": "string",
-    "openShiftVersion": "string",
     "namespace": "string",
     "object_uid": "string",
     "creationTimestamp": "date",
@@ -314,7 +307,6 @@ endpointSchemaDefinition: '{
 podResourceQuotaSchemaDefinition: '{
   "schema": {
     "clusterName": "string",
-    "openShiftVersion": "string",
     "nodeName": "string",
     "customLabels": "string",
     "msServiceName": "string",
@@ -331,7 +323,6 @@ namespaceQuotaUtilizationSchemaDefinition: '{
      "namespace": "string",
      "clusterName": "string",
      "customLabels": "string",
-     "openshiftPlatform": "string",
      "cpuRequestUsed": "float",
      "cpuRequestTotal": "float",
      "cpuLimitsUsed": "float",
@@ -346,7 +337,6 @@ namespaceQuotaUtilizationSchemaDefinition: '{
 podStatusMonitorSchemaDefinition: '{
    "schema": {
      "clusterName": "string",
-     "openshiftVersion": "string",
      "customLabels": "string",
      "nodeName": "string",
      "namespace": "string",
@@ -364,7 +354,6 @@ notRunningPodCountPerNodeSchemaDefinition: '{
    "schema": {
       "clusterName": "string",
       "customLabels": "string",
-      "openshiftVersion": "string",
       "nodeName": "string",
       "containerStatus": "string",
       "notRunningPodCount": "integer",
@@ -375,7 +364,6 @@ notRunningPodCountPerNodeSchemaDefinition: '{
 podsCrashStatusSchemaDefinition: '{
   "schema": {
      "clusterName": "string",
-     "openshiftVersion": "string",
      "customLabels": "string",
      "nodeName": "string",
      "namespace": "string",

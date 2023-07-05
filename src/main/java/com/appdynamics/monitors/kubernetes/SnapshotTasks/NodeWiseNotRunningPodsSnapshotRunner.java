@@ -5,6 +5,7 @@ import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_DEF_NO
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_DEF_NOT_RUNNING_POD_COUNT;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_NAME_NODE;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_NAME_NOT_RUNNING_POD_COUNT;
+import static com.appdynamics.monitors.kubernetes.Constants.K8S_VERSION;
 import static com.appdynamics.monitors.kubernetes.Constants.OPENSHIFT_VERSION;
 import static com.appdynamics.monitors.kubernetes.Utilities.ALL;
 import static com.appdynamics.monitors.kubernetes.Utilities.checkAddObject;
@@ -135,6 +136,9 @@ public class NodeWiseNotRunningPodsSnapshotRunner extends SnapshotRunnerBase {
 	        ObjectNode objectNode = mapper.createObjectNode();
 	        if(!OPENSHIFT_VERSION.isEmpty()) {
 	        	objectNode = checkAddObject(objectNode,OPENSHIFT_VERSION, "openshiftVersion");
+	        }
+	        if(!K8S_VERSION.isEmpty()) {
+	        	objectNode = checkAddObject(objectNode,K8S_VERSION, "kubernetesVersion");	        	
 	        }
 	        objectNode = checkAddObject(objectNode, node.getMetadata().getName(), "nodeName");
 	        objectNode = checkAddObject(objectNode, getContainerStatus(node,config), "containerStatus");

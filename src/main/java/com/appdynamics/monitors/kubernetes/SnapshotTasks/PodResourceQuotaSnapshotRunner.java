@@ -3,6 +3,7 @@ package com.appdynamics.monitors.kubernetes.SnapshotTasks;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_RECS_BATCH_SIZE;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_DEF_POD_RESOURCE_QUOTA;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_NAME_POD_RESOURCE_QUOTA;
+import static com.appdynamics.monitors.kubernetes.Constants.K8S_VERSION;
 import static com.appdynamics.monitors.kubernetes.Constants.OPENSHIFT_VERSION;
 import static com.appdynamics.monitors.kubernetes.Utilities.ALL;
 import static com.appdynamics.monitors.kubernetes.Utilities.checkAddFloat;
@@ -334,9 +335,11 @@ public class PodResourceQuotaSnapshotRunner  extends SnapshotRunnerBase {
 	
 	
 		       if(!OPENSHIFT_VERSION.isEmpty()) {
-		    	   objectNode = checkAddObject(objectNode, OPENSHIFT_VERSION, "openShiftVersion");
-				
+		    	   objectNode = checkAddObject(objectNode, OPENSHIFT_VERSION, "openshiftVersion");				
 		       }
+		       if(!K8S_VERSION.isEmpty()) {
+		        	objectNode = checkAddObject(objectNode,K8S_VERSION, "kubernetesVersion");	        	
+		        }
 		        objectNode = checkAddObject(objectNode, microserviceData.getClusterName(), Constants.CLUSTER_NAME);
 		        arrayNode.add(objectNode);
 	
