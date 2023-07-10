@@ -211,7 +211,7 @@ public class PodCrashStatusSnapshotRunner extends SnapshotRunnerBase {
 	        String namespace = pod.getMetadata().getNamespace();
 	        objectNode = checkAddObject(objectNode, namespace, "namespace");
 
-		  if(OPENSHIFT_VERSION.isEmpty()) {
+		  if(!OPENSHIFT_VERSION.isEmpty()) {
 				objectNode = checkAddObject(objectNode, OPENSHIFT_VERSION, "openshiftVersion");
 		  }
 		  if(!K8S_VERSION.isEmpty()) {

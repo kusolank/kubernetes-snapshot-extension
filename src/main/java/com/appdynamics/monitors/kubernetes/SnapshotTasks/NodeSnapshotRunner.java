@@ -169,7 +169,7 @@ public class NodeSnapshotRunner extends SnapshotRunnerBase {
             	nodeObject = checkAddInt(nodeObject,getNotRunningPodCount(nodeName, config),"notRunningPodCount");
 			
             
-            if(OPENSHIFT_VERSION.isEmpty()) {
+            if(!OPENSHIFT_VERSION.isEmpty()) {
             	nodeObject = checkAddObject(nodeObject,OPENSHIFT_VERSION,"openshiftVersion");
             }
             if(!K8S_VERSION.isEmpty()) {
