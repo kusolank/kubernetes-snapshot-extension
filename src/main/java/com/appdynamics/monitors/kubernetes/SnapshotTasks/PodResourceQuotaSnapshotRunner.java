@@ -24,6 +24,7 @@ import com.appdynamics.extensions.TasksExecutionServiceProvider;
 import com.appdynamics.extensions.metrics.Metric;
 import com.appdynamics.extensions.util.AssertUtils;
 import com.appdynamics.monitors.kubernetes.Constants;
+import com.appdynamics.monitors.kubernetes.Globals;
 import com.appdynamics.monitors.kubernetes.KubernetesClientSingleton;
 import com.appdynamics.monitors.kubernetes.MicroserviceData;
 import com.appdynamics.monitors.kubernetes.Utilities;
@@ -47,7 +48,6 @@ import io.kubernetes.client.openapi.models.V1OwnerReference;
 import io.kubernetes.client.openapi.models.V1Pod;
 import io.kubernetes.client.openapi.models.V1PodList;
 import io.kubernetes.client.openapi.models.V1ReplicaSet;
-import io.kubernetes.client.util.Config;
 
 public class PodResourceQuotaSnapshotRunner  extends SnapshotRunnerBase {
 
@@ -85,7 +85,7 @@ public class PodResourceQuotaSnapshotRunner  extends SnapshotRunnerBase {
 	        URL publishUrl = Utilities.ensureSchema(config, apiKey, accountName, CONFIG_SCHEMA_NAME_POD_RESOURCE_QUOTA, CONFIG_SCHEMA_DEF_POD_RESOURCE_QUOTA);
 
 	        try {
-	        	V1PodList pods =  getPodsFromKubernetes(config);
+	        	V1PodList pods =  Globals.K8S_POD_LIST;
 
 	            createPayload(pods, config, publishUrl, accountName, apiKey);
 	            List<Metric> metricList = getMetricsFromSummary(getSummaryMap(), config);
@@ -253,7 +253,6 @@ public class PodResourceQuotaSnapshotRunner  extends SnapshotRunnerBase {
 	        if(!serviceName.isEmpty()) {
 		        String namespace = pod.getMetadata().getNamespace();
 		        MicroserviceData microserviceData = microserviceDataMap.get(serviceName);
-		        
 		        String nodeName=pod.getSpec().getNodeName();
 		        if(nodeObjectMap.containsKey(apiKey))  {
 		        	nodeObject=nodeObjectMap.get(nodeName);
@@ -311,27 +310,30 @@ public class PodResourceQuotaSnapshotRunner  extends SnapshotRunnerBase {
 		        
 		        
 	            V1Node nodeObj = microserviceData.getNodeObject();
-	            String nodeNameKey=microserviceData.getServiceName()+"-"+nodeObj.getMetadata().getName();
-	            boolean isMaster = false;
-	            if (nodeObj.getMetadata().getLabels() != null) {
-	                Iterator it = nodeObj.getMetadata().getLabels().entrySet().iterator();
-	                while (it.hasNext()) {
-	                    Map.Entry pair = (Map.Entry) it.next();
-	                    if (!isMaster && pair.getKey().equals("node-role.kubernetes.io/master")) {
-	                        isMaster = true;
-	                    }
-	                    it.remove();
-	                }
+	            logger.debug("createPayload microserviceData getNodeObject:"+nodeObj);
+	            if(nodeObj!=null && (nodeObj.getMetadata()!=null)) {
+			            String nodeNameKey=microserviceData.getServiceName()+"-"+nodeObj.getMetadata().getName();
+			            boolean isMaster = false;
+			            if (nodeObj.getMetadata().getLabels() != null) {
+			                Iterator it = nodeObj.getMetadata().getLabels().entrySet().iterator();
+			                while (it.hasNext()) {
+			                    Map.Entry pair = (Map.Entry) it.next();
+			                    if (!isMaster && pair.getKey().equals("node-role.kubernetes.io/master")) {
+			                        isMaster = true;
+			                    }
+			                    it.remove();
+			                }
+			            }
+		
+			            SummaryObj summaryNode = getSummaryMap().get(nodeNameKey);
+			            if(Utilities.shouldCollectMetricsForNode(getConfiguration(), nodeObj.getMetadata().getName())) {
+			                if (summaryNode == null) {
+			                    summaryNode = updatePODResourceQuotaSummaryObject(config, microserviceData,nodeObj.getMetadata().getName(), isMaster ? Constants.MASTER_NODE : Constants.WORKER_NODE);
+			                    getSummaryMap().put(nodeNameKey, summaryNode);
+			                }
+			            }
+	            	
 	            }
-
-	            SummaryObj summaryNode = getSummaryMap().get(nodeNameKey);
-	            if(Utilities.shouldCollectMetricsForNode(getConfiguration(), nodeObj.getMetadata().getName())) {
-	                if (summaryNode == null) {
-	                    summaryNode = updatePODResourceQuotaSummaryObject(config, microserviceData,nodeObj.getMetadata().getName(), isMaster ? Constants.MASTER_NODE : Constants.WORKER_NODE);
-	                    getSummaryMap().put(nodeNameKey, summaryNode);
-	                }
-	            }
-	
 	
 	
 		       if(!OPENSHIFT_VERSION.isEmpty()) {
@@ -385,37 +387,6 @@ public class PodResourceQuotaSnapshotRunner  extends SnapshotRunnerBase {
 
 
 
-	public static void main(String[] args) throws Exception {
-		  V1PodList podList = null;
-			try {
-			ApiClient client =Config.defaultClient();
-	     //   this.setAPIServerTimeout(client, K8S_API_TIMEOUT);
-	        Configuration.setDefaultApiClient(client);
-	        CoreV1Api api = new CoreV1Api();
-	       // this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
-	         podList = api.listPodForAllNamespaces(null,
-	                null,
-	                null,
-	                null,
-	                null,
-	                null,
-	                null,
-	                null,
-	                null, null);
-	    }
-	    catch (Exception ex){
-	    		ex.printStackTrace();
-	    }
-        
-        for (V1Pod pod : podList.getItems()) {
-        	System.out.println("pod name"+pod.getSpec().getNodeName());
-        	   Map<String, String> nodeselector = pod.getSpec().getNodeSelector();
-   if(nodeselector!=null)
-        	   for (Map.Entry<String, String> entry : nodeselector.entrySet()) {
-        	   System.out.println(entry.getKey()+"- "+entry.getValue());
-        	   }
-        }
-	}
 	 private static String  getDeploymentName(V1Pod pod)  {
 	 // Get the metadata of the pod
 		try {

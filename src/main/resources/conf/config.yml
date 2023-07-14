@@ -345,7 +345,6 @@ podStatusMonitorSchemaDefinition: '{
      "podName": "string",
      "errorReason": "string",
      "containerPhase": "string",
-     "notRunningPodCount": "integer",
      "restartCount": "integer"
   }
  }'

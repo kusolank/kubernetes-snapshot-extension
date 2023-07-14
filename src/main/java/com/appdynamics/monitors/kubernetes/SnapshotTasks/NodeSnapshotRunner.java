@@ -166,7 +166,7 @@ public class NodeSnapshotRunner extends SnapshotRunnerBase {
                 }
             }
        
-            	nodeObject = checkAddInt(nodeObject,getNotRunningPodCount(nodeName, config),"notRunningPodCount");
+            	nodeObject = checkAddInt(nodeObject,getNotRunningPodCount(nodeName),"notRunningPodCount");
 			
             
             if(!OPENSHIFT_VERSION.isEmpty()) {
@@ -257,7 +257,7 @@ public class NodeSnapshotRunner extends SnapshotRunnerBase {
             if (nodeObj.getStatus().getVolumesAttached() != null){
                 String attachedValumes = "";
                 for (V1AttachedVolume v : nodeObj.getStatus().getVolumesAttached()) {
-                    attachedValumes += String.format("$s:$s;", v.getName(), v.getDevicePath());
+                    attachedValumes += String.format("%s:%s;", v.getName(), v.getDevicePath());
                 }
                 nodeObject = checkAddObject(nodeObject, attachedValumes, "attachedVolumes");
             }
@@ -265,7 +265,7 @@ public class NodeSnapshotRunner extends SnapshotRunnerBase {
             if (nodeObj.getStatus().getVolumesInUse() != null) {
                 String volumesInUse = "";
                 for (String v : nodeObj.getStatus().getVolumesInUse()) {
-                    volumesInUse += String.format("$s:", v);
+                    volumesInUse += String.format("%s:", v);
                 }
                 nodeObject = checkAddObject(nodeObject, volumesInUse, "volumesInUse");
             }
@@ -330,29 +330,19 @@ public class NodeSnapshotRunner extends SnapshotRunnerBase {
 
         return arrayNode;
     }
- 	public int getNotRunningPodCount(String nodeName, Map<String, String> config)  {
-		int count = 0;
-		try {
-			ApiClient client = KubernetesClientSingleton.getInstance(config);
-			CoreV1Api api =KubernetesClientSingleton.getCoreV1ApiClient(config);
-		    this.setAPIServerTimeout(KubernetesClientSingleton.getInstance(config), K8S_API_TIMEOUT);
-            Configuration.setDefaultApiClient(client);
-            this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
-		    String fieldSelector = "spec.nodeName=" + nodeName;
-		    String podPhase = "NotRunning";
-		    V1PodList podList = api.listNamespacedPod(ALL, null, null, null, fieldSelector, null, null, null, null, K8S_API_TIMEOUT, null);
-		   
-		    for (V1Pod pod : podList.getItems()) {
-		        if (pod.getStatus().getPhase().equalsIgnoreCase(podPhase)) {
-		            count++;
-		        }
-		    }
-	    }
-	    catch (Exception ex){
-	      logger.info("Unable to connect to Kubernetes API server because it may be unavailable or the cluster credentials are invalid {}", ex);
-	    }
-		 return count;
-	}
+  	public int getNotRunningPodCount(String nodeName)  {
+ 		int count = 0;
+ 		String podPhase = "Running";
+ 		V1PodList podList = Globals.K8S_POD_LIST;
+ 		for (V1Pod pod : podList.getItems()) {
+ 			if(pod.getSpec().getNodeName().equals(nodeName) &&  (!pod.getStatus().getPhase().equalsIgnoreCase(podPhase))) {
+ 				count++;     
+ 			}
+ 		}
+
+ 		return count;   
+ 	}
+
    
  	protected SummaryObj initDefaultSummaryObject(Map<String, String> config){
         return initNodeSummaryObject(config, ALL,null);

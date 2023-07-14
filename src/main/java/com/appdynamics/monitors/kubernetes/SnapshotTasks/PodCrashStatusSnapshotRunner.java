@@ -10,7 +10,6 @@ import static com.appdynamics.monitors.kubernetes.Utilities.checkAddInt;
 import static com.appdynamics.monitors.kubernetes.Utilities.checkAddObject;
 import static com.appdynamics.monitors.kubernetes.Utilities.ensureSchema;
 
-import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -21,7 +20,7 @@ import java.util.concurrent.CountDownLatch;
 import com.appdynamics.extensions.TasksExecutionServiceProvider;
 import com.appdynamics.extensions.metrics.Metric;
 import com.appdynamics.extensions.util.AssertUtils;
-import com.appdynamics.monitors.kubernetes.KubernetesClientSingleton;
+import com.appdynamics.monitors.kubernetes.Globals;
 import com.appdynamics.monitors.kubernetes.Utilities;
 import com.appdynamics.monitors.kubernetes.Metrics.UploadMetricsTask;
 import com.appdynamics.monitors.kubernetes.Models.AppDMetricObj;
@@ -30,13 +29,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
-import io.kubernetes.client.openapi.ApiClient;
-import io.kubernetes.client.openapi.Configuration;
-import io.kubernetes.client.openapi.apis.CoreV1Api;
-import io.kubernetes.client.openapi.models.V1Container;
 import io.kubernetes.client.openapi.models.V1ContainerStateTerminated;
 import io.kubernetes.client.openapi.models.V1ContainerStatus;
 import io.kubernetes.client.openapi.models.V1Pod;
+import io.kubernetes.client.openapi.models.V1PodCondition;
 import io.kubernetes.client.openapi.models.V1PodList;
 
 
@@ -75,7 +71,7 @@ public class PodCrashStatusSnapshotRunner extends SnapshotRunnerBase {
 	        try {
 	           
 
-	        	V1PodList pods = getPodsFromKubernetes(config); 
+	        	V1PodList pods = getPodsFromKubernetes(); 
 
 	        	createPodCrashStatusPayload( pods, config, publishUrl,  accountName,  apiKey);
 
@@ -87,13 +83,10 @@ public class PodCrashStatusSnapshotRunner extends SnapshotRunnerBase {
 	            UploadMetricsTask podMetricsTask = new UploadMetricsTask(getConfiguration(), getServiceProvider().getMetricWriteHelper(), metricList, countDownLatch);
 	            getConfiguration().getExecutorService().execute("UploadPodCrashStatusTask", podMetricsTask);
  
-	        } catch (IOException e) {
+	        } catch (Exception e) {
                 countDownLatch.countDown();
                 logger.error("Failed to push End Points data", e);
-            } catch (Exception e) {
-                countDownLatch.countDown();
-                logger.error("Failed to push End Points data", e);
-            }
+            } 
         }
     }
 	
@@ -146,15 +139,17 @@ public class PodCrashStatusSnapshotRunner extends SnapshotRunnerBase {
 
 
 	private String getErrorReason(V1Pod pod) {
-		 String errorReason = "";
-
-		    // Retrieve the error reason from the Pod status
-		    if (pod.getStatus() != null && pod.getStatus().getReason() != null) {
-		        errorReason = pod.getStatus().getReason();
-		    }
-
-		    return errorReason;
-		
+		String reasons="";
+	    if (pod.getStatus() != null && pod.getStatus().getConditions() != null) {
+	        List<V1PodCondition> conditions = pod.getStatus().getConditions();
+	        for (V1PodCondition condition : conditions) {
+	            if ( condition.getStatus().equalsIgnoreCase("False")) {
+	                // Retrieve the error reason from the pod's condition
+	            	reasons += String.format("%s;", condition.getReason()+", Message: "+condition.getMessage());
+	            }
+	        }
+	    }
+	    return reasons;
 	}
 
 
@@ -170,28 +165,9 @@ public class PodCrashStatusSnapshotRunner extends SnapshotRunnerBase {
 	}
 
 
-	private V1PodList getPodsFromKubernetes(Map<String, String> config) throws Exception {
-		  V1PodList podList;
-		try {
-			ApiClient client = KubernetesClientSingleton.getInstance(config);
-			CoreV1Api api =KubernetesClientSingleton.getCoreV1ApiClient(config);
-		    this.setAPIServerTimeout(KubernetesClientSingleton.getInstance(config), K8S_API_TIMEOUT);
-            Configuration.setDefaultApiClient(client);
-            this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
-         podList = api.listPodForAllNamespaces(null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null,
-                null, null);
-    }
-    catch (Exception ex){
-        throw new Exception("Unable to connect to Kubernetes API server because it may be unavailable or the cluster credentials are invalid", ex);
-    }
-        return podList;
+	private V1PodList getPodsFromKubernetes() {
+		  
+        return Globals.K8S_POD_LIST;
 	
 	}
 
@@ -238,6 +214,7 @@ public class PodCrashStatusSnapshotRunner extends SnapshotRunnerBase {
             
 	        ObjectNode labelsObject = Utilities.getResourceLabels(config,mapper, pod);
 	        objectNode=checkAddObject(objectNode,labelsObject,"customLabels");
+	        objectNode=checkAddObject(objectNode,getContainerPhase(pod),"containerPhase");
             
             SummaryObj summary = getSummaryMap().get(ALL);
             if (summary == null) {
@@ -291,6 +268,14 @@ public class PodCrashStatusSnapshotRunner extends SnapshotRunnerBase {
 	    }
 
 	    return arrayNode;
+	}
+	private String getContainerPhase(V1Pod pod) {
+	    if (pod.getStatus() != null) {
+	        String phase = pod.getStatus().getPhase();
+	        // Retrieve the container phase from the pod's status phase
+	        return phase;
+	    }
+	    return "";
 	}
     private int getRestartCount(V1Pod podItem) {
     	 int podRestarts = 0;

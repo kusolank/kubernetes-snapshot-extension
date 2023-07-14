@@ -39,12 +39,10 @@ import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.models.V1Container;
 import io.kubernetes.client.openapi.models.V1ContainerStatus;
 import io.kubernetes.client.openapi.models.V1Node;
-import io.kubernetes.client.openapi.models.V1NodeList;
 import io.kubernetes.client.openapi.models.V1ObjectMeta;
 import io.kubernetes.client.openapi.models.V1OwnerReference;
 import io.kubernetes.client.openapi.models.V1Pod;
 import io.kubernetes.client.openapi.models.V1PodCondition;
-import io.kubernetes.client.openapi.models.V1PodList;
 import io.kubernetes.client.openapi.models.V1ReplicaSet;
 
 
@@ -84,7 +82,7 @@ public class PodStatusMonitorSnapshotRunner extends SnapshotRunnerBase {
 	        try {
 	         
 
-	            List<V1Pod> pods = getPods(config);
+	            List<V1Pod> pods = getPods();
 	            createPayload(pods, config, publishUrl, accountName, apiKey);
 	            List<Metric> metricList = getMetricsFromSummary(getSummaryMap(), config);
 
@@ -101,28 +99,6 @@ public class PodStatusMonitorSnapshotRunner extends SnapshotRunnerBase {
 	    }
 	}
 	
-	public int getNotRunningPodCount(String nodeName, Map<String, String> config) throws Exception {
-	    int count = 0;
-	    try {
-			ApiClient client = KubernetesClientSingleton.getInstance(config);
-			CoreV1Api api =KubernetesClientSingleton.getCoreV1ApiClient(config);
-		    this.setAPIServerTimeout(KubernetesClientSingleton.getInstance(config), K8S_API_TIMEOUT);
-            Configuration.setDefaultApiClient(client);
-            this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
-	       
-	        String podPhase = "Running";
-	        V1PodList podList = api.listPodForAllNamespaces(null, null, null, null, null, null, null, null, null, null);
-
-	        for (V1Pod pod : podList.getItems()) {
-	            if (!pod.getStatus().getPhase().equalsIgnoreCase(podPhase)) {
-	                count++;
-	            }
-	        }
-	        return count;
-	    } catch (Exception ex) {
-	        throw new Exception("Unable to connect to Kubernetes API server because it may be unavailable or the cluster credentials are invalid", ex);
-	    }
-	}
 
 
 	public ArrayNode createPayload(List<V1Pod> pods, Map<String, String> config, URL publishUrl, String accountName, String apiKey) throws Exception {
@@ -167,40 +143,42 @@ public class PodStatusMonitorSnapshotRunner extends SnapshotRunnerBase {
            
             String namespace = pod.getMetadata().getNamespace();
             String nodeName = pod.getSpec().getNodeName();
-            SummaryObj summaryNamespace = getSummaryMap().get(namespace);
-            if (Utilities.shouldCollectMetricsForNode(getConfiguration(), namespace)) {
-                if (summaryNamespace == null) {
-                    summaryNamespace = initPodStatusMonitorSummaryObject(config, namespace, ALL);
-                    getSummaryMap().put(namespace, summaryNamespace);
-                }
-            }
-            SummaryObj summaryNode = getSummaryMap().get(nodeName);
-            boolean isMaster = false;
-            int masters = 0;
-            int workers = 0;
-         // Retrieve the Node object
           
-           V1Node nodeObj = getNode(config, nodeName);
-            // Extract the labels from the Node object
-            Map<String, String> labels = nodeObj.getMetadata().getLabels();
-            if (nodeObj.getMetadata().getLabels() != null) {
-                Iterator it = nodeObj.getMetadata().getLabels().entrySet().iterator();
-                while (it.hasNext()) {
-                    Map.Entry pair = (Map.Entry) it.next();
-                    if (!isMaster && pair.getKey().equals("node-role.kubernetes.io/master")) {
-                        isMaster = true;
-                    }
-                    it.remove();
-                }
-            }
-           
-            if(Utilities.shouldCollectMetricsForNode(getConfiguration(), nodeName)) {
-                if (summaryNode == null) {
-                    summaryNode = initPodStatusMonitorSummaryObjectNode(config, nodeName, isMaster ? Constants.MASTER_NODE : Constants.WORKER_NODE);
-                    getSummaryMap().put(nodeName, summaryNode);
-                    Globals.NODE_ROLE_MAP.put(nodeName, isMaster ? Constants.MASTER_NODE : Constants.WORKER_NODE);
-                }
-            }
+	            SummaryObj summaryNamespace = getSummaryMap().get(namespace);
+	            if (Utilities.shouldCollectMetricsForNamespace(getConfiguration(), namespace)) {
+	                if (summaryNamespace == null) {
+	                    summaryNamespace = initPodStatusMonitorSummaryObject(config, namespace, ALL);
+	                    getSummaryMap().put(namespace, summaryNamespace);
+	                }
+	            }
+	            SummaryObj summaryNode = getSummaryMap().get(nodeName);
+	            boolean isMaster = false;
+	            int masters = 0;
+	            int workers = 0;
+	         // Retrieve the Node object
+	            if(nodeName!=null) {
+		           V1Node nodeObj = getNode(config, nodeName);
+		            // Extract the labels from the Node object
+		            Map<String, String> labels = nodeObj.getMetadata().getLabels();
+		            if (nodeObj.getMetadata().getLabels() != null) {
+		                Iterator it = nodeObj.getMetadata().getLabels().entrySet().iterator();
+		                while (it.hasNext()) {
+		                    Map.Entry pair = (Map.Entry) it.next();
+		                    if (!isMaster && pair.getKey().equals("node-role.kubernetes.io/master")) {
+		                        isMaster = true;
+		                    }
+		                    it.remove();
+		                }
+		            }
+		           
+		            if(Utilities.shouldCollectMetricsForNode(getConfiguration(), nodeName)) {
+		                if (summaryNode == null) {
+		                    summaryNode = initPodStatusMonitorSummaryObjectNode(config, nodeName, isMaster ? Constants.MASTER_NODE : Constants.WORKER_NODE);
+		                    getSummaryMap().put(nodeName, summaryNode);
+		                    Globals.NODE_ROLE_MAP.put(nodeName, isMaster ? Constants.MASTER_NODE : Constants.WORKER_NODE);
+		                }
+		            }
+	            }
             
             int notRunningCount=0;
             if (!"Running".equalsIgnoreCase(pod.getStatus().getPhase())) {
@@ -278,8 +256,6 @@ public class PodStatusMonitorSnapshotRunner extends SnapshotRunnerBase {
         // Get the owner references from the pod's metadata
         List<V1OwnerReference> ownerReferences = metadata.getOwnerReferences();
         
-
-
 		ApiClient client = KubernetesClientSingleton.getInstance(config);
 		AppsV1Api api =KubernetesClientSingleton.getAppsV1ApiClient(config);
 	    this.setAPIServerTimeout(KubernetesClientSingleton.getInstance(config), K8S_API_TIMEOUT);
@@ -357,26 +333,8 @@ public class PodStatusMonitorSnapshotRunner extends SnapshotRunnerBase {
 
 
 	
-	private List<V1Pod> getPods(Map<String, String> config) throws Exception {
-		V1PodList podList;
-		ApiClient client = KubernetesClientSingleton.getInstance(config);
-		CoreV1Api api =KubernetesClientSingleton.getCoreV1ApiClient(config);
-	    this.setAPIServerTimeout(KubernetesClientSingleton.getInstance(config), K8S_API_TIMEOUT);
-        Configuration.setDefaultApiClient(client);
-        this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
-
-         this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
-         podList = api.listPodForAllNamespaces(null,
-                 null,
-                 null,
-                 null,
-                 null,
-                 null,
-                 null,
-                 null,
-                 null, null);
-
-	    return podList.getItems();
+	private List<V1Pod> getPods()  {
+		return Globals.K8S_POD_LIST.getItems();
 	}
 
 
@@ -394,34 +352,6 @@ public class PodStatusMonitorSnapshotRunner extends SnapshotRunnerBase {
 
 	
 	
-	
-
-
-	private V1NodeList getNodesFromKubernetes(Map<String, String> config) throws Exception {
-		  V1NodeList nodeList;
-
-		try {
-			ApiClient client = KubernetesClientSingleton.getInstance(config);
-			CoreV1Api api =KubernetesClientSingleton.getCoreV1ApiClient(config);
-		    this.setAPIServerTimeout(KubernetesClientSingleton.getInstance(config), K8S_API_TIMEOUT);
-            Configuration.setDefaultApiClient(client);
-            this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
-         nodeList = api.listNode(null,
-                 false,
-                 null,
-                 null,
-                 null, 500,
-                 null,
-                 null,
-                 K8S_API_TIMEOUT,
-                 false);
-    }
-    catch (Exception ex){
-        throw new Exception("Unable to connect to Kubernetes API server because it may be unavailable or the cluster credentials are invalid", ex);
-    }
-        return nodeList;
-	
-	}
 
 
 	
@@ -455,21 +385,7 @@ public class PodStatusMonitorSnapshotRunner extends SnapshotRunnerBase {
         String path = Utilities.getMetricsPath(config, ALL, node,role);
 		return new SummaryObj(summary, metricsList, path);
 	}
-	public static SummaryObj updatePodStatusMonitorSummaryObject(Map<String, String> config, String namespace,String node) {
-	    ObjectMapper mapper = new ObjectMapper();
-	    ObjectNode summary = mapper.createObjectNode();
-        summary.put("namespace", namespace);
-        summary.put("nodename", node);
-	    summary.put("NotRunningPodCount",0);
 
-	    summary.put("RestartCount", 0);
-
-	    ArrayList<AppDMetricObj> metricsList = initMetrics(config, namespace,node);
-
-	    String path = Utilities.getMetricsPath(config, namespace, node);
-
-	    return new SummaryObj(summary, metricsList, path);
-	}
 
 	 public static ArrayList<AppDMetricObj> initMetrics(Map<String, String> config, String node){
 

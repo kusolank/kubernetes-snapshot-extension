@@ -47,12 +47,16 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.VersionInfo;
 import io.fabric8.openshift.client.DefaultOpenShiftClient;
 import io.fabric8.openshift.client.OpenShiftClient;
+import io.kubernetes.client.openapi.ApiClient;
+import io.kubernetes.client.openapi.Configuration;
+import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.models.CoreV1Event;
 import io.kubernetes.client.openapi.models.V1DaemonSet;
 import io.kubernetes.client.openapi.models.V1Deployment;
 import io.kubernetes.client.openapi.models.V1Namespace;
 import io.kubernetes.client.openapi.models.V1Node;
 import io.kubernetes.client.openapi.models.V1Pod;
+import io.kubernetes.client.openapi.models.V1PodList;
 import io.kubernetes.client.openapi.models.V1ReplicaSet;
 import io.kubernetes.client.util.Config;
 
@@ -63,7 +67,7 @@ public class Utilities {
     public static String ClusterName = "";
     public static ArrayList<AdqlSearchObj> savedSearches = new ArrayList<AdqlSearchObj>();
     public static int FIELD_LENGTH_LIMIT = 4000;
-
+    protected static int K8S_API_TIMEOUT = 240;
     public static URL getUrl(String input){
         URL url = null;
         try {
@@ -388,7 +392,6 @@ public class Utilities {
             
         }
         String str=String.format("%s%s%s%s%s", Utilities.getMetricsPath(config), METRIC_SEPARATOR, METRIC_PATH_MICRO_SERVICES, METRIC_SEPARATOR, microService);
-        logger.info("getMetricsPath string is : {}",str);
         return str;
        
     }
@@ -397,7 +400,6 @@ public class Utilities {
 
         
         String str=String.format("%s%s%s%s%s%s%s%s%s", Utilities.getMetricsPath(config),METRIC_SEPARATOR,METRIC_PATH_NAMESPACES,METRIC_SEPARATOR,namespace, METRIC_SEPARATOR, METRIC_PATH_MICRO_SERVICES,METRIC_SEPARATOR,microService.getServiceName());
-        logger.info("getMetricsPath string is : {}",str);
         return str;
        
     }
@@ -647,5 +649,31 @@ public class Utilities {
 	     }
     	return labelsObject;
     }
+    
+	public static V1PodList getPodsFromKubernetes(Map<String, String> config) throws Exception {
+		
+		V1PodList podList;
+		try {
+			ApiClient client = KubernetesClientSingleton.getInstance(config);
+			CoreV1Api api =KubernetesClientSingleton.getCoreV1ApiClient(config);
+		   
+            Configuration.setDefaultApiClient(client);
+            podList = api.listPodForAllNamespaces(null,
+	          null,
+	          null,
+	          null,
+	          null,
+	          null,
+	          null,
+	          null,
+	          null, null);
+		}
+	  catch (Exception ex){
+	      throw new Exception("Unable to connect to Kubernetes API server because it may be unavailable or the cluster credentials are invalid", ex);
+	  }
+	  
+		return podList;
+	
+	}
     
 }

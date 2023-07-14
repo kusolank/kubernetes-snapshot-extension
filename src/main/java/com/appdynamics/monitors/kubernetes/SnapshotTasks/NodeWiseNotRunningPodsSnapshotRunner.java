@@ -3,19 +3,15 @@ package com.appdynamics.monitors.kubernetes.SnapshotTasks;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_RECS_BATCH_SIZE;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_DEF_NODE;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_DEF_NOT_RUNNING_POD_COUNT;
-import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_NAME_NODE;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_NAME_NOT_RUNNING_POD_COUNT;
 import static com.appdynamics.monitors.kubernetes.Constants.K8S_VERSION;
 import static com.appdynamics.monitors.kubernetes.Constants.OPENSHIFT_VERSION;
 import static com.appdynamics.monitors.kubernetes.Utilities.ALL;
-import static com.appdynamics.monitors.kubernetes.Utilities.checkAddObject;
 import static com.appdynamics.monitors.kubernetes.Utilities.checkAddInt;
-
+import static com.appdynamics.monitors.kubernetes.Utilities.checkAddObject;
 import static com.appdynamics.monitors.kubernetes.Utilities.ensureSchema;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -38,14 +34,12 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import io.kubernetes.client.openapi.ApiClient;
-import io.kubernetes.client.openapi.ApiException;
 import io.kubernetes.client.openapi.Configuration;
 import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.models.V1ContainerState;
 import io.kubernetes.client.openapi.models.V1ContainerStatus;
 import io.kubernetes.client.openapi.models.V1Node;
 import io.kubernetes.client.openapi.models.V1NodeList;
-import io.kubernetes.client.openapi.models.V1ObjectMeta;
 import io.kubernetes.client.openapi.models.V1Pod;
 import io.kubernetes.client.openapi.models.V1PodList;
 
@@ -101,29 +95,17 @@ public class NodeWiseNotRunningPodsSnapshotRunner extends SnapshotRunnerBase {
 	    }
 	}
 	
-	public int getNotRunningPodCount(String nodeName, Map<String, String> config) throws Exception  {
-		 int count = 0;
-		try {
-			ApiClient client = KubernetesClientSingleton.getInstance(config);
-			CoreV1Api api =KubernetesClientSingleton.getCoreV1ApiClient(config);
-		    this.setAPIServerTimeout(KubernetesClientSingleton.getInstance(config), K8S_API_TIMEOUT);
-            Configuration.setDefaultApiClient(client);
-            this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
-		    String fieldSelector = "spec.nodeName=" + nodeName;
-		    String podPhase = "NotRunning";
-		    V1PodList podList = api.listNamespacedPod(ALL, null, null, null, fieldSelector, null, null, null, null, null, null);
-		   
-		    for (V1Pod pod : podList.getItems()) {
-		        if (pod.getStatus().getPhase().equalsIgnoreCase(podPhase)) {
-		            count++;
-		        }
-		    }
-		    return count;
-	    }
-	    catch (Exception ex){
-	        throw new Exception("Unable to connect to Kubernetes API server because it may be unavailable or the cluster credentials are invalid", ex);
-	    }
-	    
+ 	public int getNotRunningPodCount(String nodeName)  {
+		int count = 0;
+		String podPhase = "Running";
+		V1PodList podList = Globals.K8S_POD_LIST;
+		for (V1Pod pod : podList.getItems()) {
+			if(pod.getSpec().getNodeName().equals(nodeName) &&  (!pod.getStatus().getPhase().equalsIgnoreCase(podPhase))) {
+				count++;     
+			}
+		}
+
+		return count;   
 	}
 
 
@@ -141,8 +123,8 @@ public class NodeWiseNotRunningPodsSnapshotRunner extends SnapshotRunnerBase {
 	        	objectNode = checkAddObject(objectNode,K8S_VERSION, "kubernetesVersion");	        	
 	        }
 	        objectNode = checkAddObject(objectNode, node.getMetadata().getName(), "nodeName");
-	        objectNode = checkAddObject(objectNode, getContainerStatus(node,config), "containerStatus");
-	        int notRunningPodCount = getNotRunningPodCount(node.getMetadata().getName(), config);
+	        objectNode = checkAddObject(objectNode, getContainerStatus(node), "containerStatus");
+	        int notRunningPodCount = getNotRunningPodCount(node.getMetadata().getName());
 			objectNode=checkAddInt(objectNode, notRunningPodCount, "notRunningPodCount");
 
 	        String clusterName = Utilities.ensureClusterName(config, node.getMetadata().getClusterName());
@@ -205,18 +187,20 @@ public class NodeWiseNotRunningPodsSnapshotRunner extends SnapshotRunnerBase {
 	    return arrayNode;
 	}
 	
-	public String getContainerStatus(V1Node node, Map<String, String> config) throws Exception {
-	    List<V1Pod> pods = getPodsFromNode(node,config);
+	public String getContainerStatus(V1Node node) throws Exception {
+	    List<V1Pod> pods = getPodsFromNode(node);
 
 	    StringBuilder containerStatusBuilder = new StringBuilder();
 
 	    for (V1Pod pod : pods) {
 	        if (!"Running".equals(pod.getStatus().getPhase())) {
 	            List<V1ContainerStatus> containerStatuses = pod.getStatus().getContainerStatuses();
-	            for (V1ContainerStatus containerStatus : containerStatuses) {
-	                String containerName = containerStatus.getName();
-	                String containerState = getContainerState(containerStatus.getState());
-	                containerStatusBuilder.append(containerName).append(": ").append(containerState).append(", ");
+	            if(containerStatuses!=null) {
+		            for (V1ContainerStatus containerStatus : containerStatuses) {
+		                String containerName = containerStatus.getName();
+		                String containerState = getContainerState(containerStatus.getState());
+		                containerStatusBuilder.append(containerName).append(": ").append(containerState).append(", ");
+		            }
 	            }
 	        }
 	    }
@@ -241,24 +225,17 @@ public class NodeWiseNotRunningPodsSnapshotRunner extends SnapshotRunnerBase {
 	    }
 	}
 
-	private List<V1Pod> getPodsFromNode(V1Node node, Map<String, String> config) throws Exception {
+	private List<V1Pod> getPodsFromNode(V1Node node) {
 	    List<V1Pod> pods = new ArrayList<>();
-	    V1ObjectMeta objectMeta = node.getMetadata();
-	    String nodeName = objectMeta.getName();
-
-	    ApiClient client = KubernetesClientSingleton.getInstance(config);
-		CoreV1Api api =KubernetesClientSingleton.getCoreV1ApiClient(config);
-	    this.setAPIServerTimeout(KubernetesClientSingleton.getInstance(config), K8S_API_TIMEOUT);
-        Configuration.setDefaultApiClient(client);
-        this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
-	    try {
-	        // Filter pods based on node name across all namespaces
-	        V1PodList podList = api.listPodForAllNamespaces(false, null, null, null, null, "spec.nodeName=" + nodeName, null, null, null, null);
-	        pods = podList.getItems();
-	    } catch (ApiException e) {
-	        throw new Exception("Unable to connect to Kubernetes API server because it may be unavailable or the cluster credentials are invalid", e);
-	    }
-
+	
+	    String nodeName = node.getMetadata().getName();
+        // Filter pods based on node name across all namespaces
+        V1PodList podList = Globals.K8S_POD_LIST;
+        for (V1Pod pod :podList.getItems()) {
+			if(pod.getSpec().getNodeName().equalsIgnoreCase(nodeName)) {
+				pods.add(pod);
+			}				
+		}	   
 	    return pods;
 	}
 

@@ -94,7 +94,7 @@ public class RestClient {
 						Response response = client.newCall(request).execute();
 						ResponseBody responseBody = response.body();
 						String responseBodyString = responseBody.string();
-						logger.info("doGet response for URL: {}, message: {} and content is: {} and responseCode is: {}", url, response.message(), responseBodyString, response.code());
+						logger.info("doGet response for URL: {}, message: {}  and responseCode is: {}", url, response.message(), response.code());
 		
 						ObjectMapper objectMapper = new ObjectMapper();
 						JsonNode jsonNode = objectMapper.readTree(responseBodyString);
@@ -125,7 +125,7 @@ public class RestClient {
     				ResponseBody responseBody = response.body();
     				String responseBodyString = responseBody.string();
 
-    				logger.info("doPost response for URL: {}, message: {} and content is: {} and responseCode is: {}", url, response.message(), responseBodyString, response.code());
+    				logger.info("doPost response for URL: {}, message: {}  and responseCode is: {}", url, response.message(), response.code());
 
     				ObjectMapper objectMapper = new ObjectMapper();
     				JsonNode jsonNode = objectMapper.readTree(responseBodyString);
@@ -175,7 +175,7 @@ public class RestClient {
             ObjectMapper objectMapper = new ObjectMapper();
             return objectMapper.readTree(response);
         } catch (IOException e) {
-            logger.error("Error while processing {} on URL {}. Reason {}", method, url, e.toString());
+            logger.error("Error while processing {} on URL {}. Reason {}", method, url, e.getMessage()+" :: "+e.getLocalizedMessage() );
             return null;
         }
         finally {
@@ -305,7 +305,7 @@ public class RestClient {
             return objectMapper.readTree(response);
 
         } catch (IOException e) {
-            logger.error("Error while processing {} on URL {}. Reason {}", method, urlPath, e.toString());
+            logger.error("Error while processing {} on URL {}. Reason {}, stacktrace: {}", method, urlPath, e.toString()+"---- cause- "+e.getCause(),e.getStackTrace());
             return null;
         } finally {
             if (conn != null) {

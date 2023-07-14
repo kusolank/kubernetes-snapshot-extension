@@ -95,6 +95,7 @@ public class KubernetesSnapshotExtension extends ABaseMonitor {
             Constants.OPENSHIFT_VERSION= Utilities.getOpenShiftVersion();
             Constants.K8S_VERSION= Utilities.getKubernetesVersion();
             Map<String, String> config = (Map<String, String>)configuration.getConfigYml();
+            Globals.K8S_POD_LIST=Utilities.getPodsFromKubernetes(config);
             //populate Tier ID and cache of searched
             if (initClusterMonitoring(config)) {
                 ArrayList<SnapshotRunnerBase> tasks = new ArrayList<SnapshotRunnerBase>();
@@ -146,6 +147,7 @@ public class KubernetesSnapshotExtension extends ABaseMonitor {
             else{
                 logger.error("Initialization failed. Aborting...");
             }
+            Globals.K8S_POD_LIST=null;
         }
         catch(Exception e) {
             logger.error("Failed to execute the Kubernetes Snapshot Extension task", e);

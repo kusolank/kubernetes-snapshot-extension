@@ -4,7 +4,6 @@ import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_RECS_BATCH_SI
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_DEF_POD;
 import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_SCHEMA_NAME_POD;
 import static com.appdynamics.monitors.kubernetes.Constants.K8S_VERSION;
-import static com.appdynamics.monitors.kubernetes.Constants.CONFIG_CUSTOM_TAGS;
 import static com.appdynamics.monitors.kubernetes.Constants.OPENSHIFT_VERSION;
 import static com.appdynamics.monitors.kubernetes.Utilities.ALL;
 import static com.appdynamics.monitors.kubernetes.Utilities.checkAddBoolean;
@@ -13,7 +12,6 @@ import static com.appdynamics.monitors.kubernetes.Utilities.checkAddInt;
 import static com.appdynamics.monitors.kubernetes.Utilities.checkAddLong;
 import static com.appdynamics.monitors.kubernetes.Utilities.checkAddObject;
 
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.URL;
 import java.util.ArrayList;
@@ -26,7 +24,7 @@ import java.util.concurrent.CountDownLatch;
 import com.appdynamics.extensions.TasksExecutionServiceProvider;
 import com.appdynamics.extensions.metrics.Metric;
 import com.appdynamics.extensions.util.AssertUtils;
-import com.appdynamics.monitors.kubernetes.KubernetesClientSingleton;
+import com.appdynamics.monitors.kubernetes.Globals;
 import com.appdynamics.monitors.kubernetes.Utilities;
 import com.appdynamics.monitors.kubernetes.Metrics.UploadMetricsTask;
 import com.appdynamics.monitors.kubernetes.Models.AppDMetricObj;
@@ -36,13 +34,11 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import io.kubernetes.client.custom.Quantity;
-import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
-import io.kubernetes.client.openapi.Configuration;
 import io.kubernetes.client.openapi.apis.AppsV1Api;
-import io.kubernetes.client.openapi.apis.CoreV1Api;
 import io.kubernetes.client.openapi.models.V1Container;
 import io.kubernetes.client.openapi.models.V1ContainerPort;
+import io.kubernetes.client.openapi.models.V1ContainerState;
 import io.kubernetes.client.openapi.models.V1ContainerStatus;
 import io.kubernetes.client.openapi.models.V1NodeAffinity;
 import io.kubernetes.client.openapi.models.V1NodeSelector;
@@ -86,29 +82,9 @@ public class PodSnapshotRunner extends SnapshotRunnerBase {
             URL publishUrl = Utilities.ensureSchema(config, apiKey, accountName,CONFIG_SCHEMA_NAME_POD, CONFIG_SCHEMA_DEF_POD);
 
             try {
-                V1PodList podList;
+                V1PodList podList=Globals.K8S_POD_LIST;
 
-                try {
-        			ApiClient client = KubernetesClientSingleton.getInstance(config);
-        			CoreV1Api api =KubernetesClientSingleton.getCoreV1ApiClient(config);
-        		    this.setAPIServerTimeout(KubernetesClientSingleton.getInstance(config), K8S_API_TIMEOUT);
-                    Configuration.setDefaultApiClient(client);
-                    this.setCoreAPIServerTimeout(api, K8S_API_TIMEOUT);
-
-                    podList = api.listPodForAllNamespaces(null,
-                            null,
-                            null,
-                            null,
-                            null,
-                            null,
-                            null,
-                            null,
-                            null, null);
-                }
-                catch (Exception ex){
-                    throw new Exception("Unable to connect to Kubernetes API server because it may be unavailable or the cluster credentials are invalid", ex);
-                }
-
+  
                 createPodPayload(podList, config, publishUrl, accountName, apiKey);
 
                 //build and update metrics
@@ -336,6 +312,8 @@ public class PodSnapshotRunner extends SnapshotRunnerBase {
             String images = "";
             String waitReasons = "";
             String termReasons = "";
+    	    StringBuilder containerStatusBuilder = new StringBuilder();
+
             if (podItem.getStatus().getContainerStatuses() != null){
                 for(V1ContainerStatus status : podItem.getStatus().getContainerStatuses()){
 
@@ -356,9 +334,17 @@ public class PodSnapshotRunner extends SnapshotRunnerBase {
                     if (status.getState().getRunning() != null) {
                         podObject = checkAddObject(podObject, status.getState().getRunning().getStartedAt(), "runningStartTime");
                     }
+                    String containerName = status.getName();
+	                String containerState = getContainerState(status.getState());
+	                containerStatusBuilder.append(containerName).append(": ").append(containerState).append(", ");
                 }
                 //container data
-                podObject = checkAddObject(podObject, contStates, "containerStates");
+               if(containerStatusBuilder.length()>1)
+               {
+            	   podObject = checkAddObject(podObject, containerStatusBuilder.substring(0, containerStatusBuilder.length()-2), "containerStates");	
+               }else{
+            	   podObject = checkAddObject(podObject, "", "containerStates");
+               }
                 podObject = checkAddObject(podObject, images, "images");
                 podObject = checkAddObject(podObject, waitReasons, "waitReasons");
                 podObject = checkAddObject(podObject, termReasons, "termReasons");
@@ -697,5 +683,17 @@ public class PodSnapshotRunner extends SnapshotRunnerBase {
         }
         return metricsList;
     }
+    
+	private String getContainerState(V1ContainerState containerState) {
+	    if (containerState.getWaiting() != null) {
+	        return "Waiting: " + containerState.getWaiting().getReason();
+	    } else if (containerState.getTerminated() != null) {
+	        return "Terminated: " + containerState.getTerminated().getReason();
+	    } else if (containerState.getRunning() != null) {
+	        return "Running";
+	    } else {
+	        return "Unknown";
+	    }
+	}
 }
 
